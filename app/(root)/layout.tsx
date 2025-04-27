@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
+//import { useAuth } from '@clerk/nextjs';
 
 import prismadb from '@/lib/prismadb';
 import { auth } from '@clerk/nextjs/server';
