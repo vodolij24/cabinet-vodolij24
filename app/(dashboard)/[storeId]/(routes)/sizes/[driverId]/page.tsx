@@ -1,18 +1,20 @@
-
 import prismadb from "@/lib/prismadb";
 import { DriversForm } from "./components/driver-form";
 
-type SizePageProps = {
+interface SizePageProps {
   params: {
-    storeId: string; // ← you actually have storeId too in your route
-    driverId: string;
+    driverId: string;  // 'driverId' comes as a string from URL parameters
   };
-};
+}
 
 const SizePage = async ({ params }: SizePageProps) => {
+  // Convert driverId from string to number
+  const driverId = params.driverId === 'new' ? 0 : Number(params.driverId);
+
+  // Query the database using the number
   const drivers = await prismadb.drivers.findUnique({
     where: {
-      id: params.driverId === "new" ? 0 : Number(params.driverId),
+      id: driverId,  // `id` is expected to be a number here
     },
   });
 
