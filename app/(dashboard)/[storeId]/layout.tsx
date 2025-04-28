@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-//import { useAuth } from '@clerk/nextjs';
 
 import Navbar from '@/components/navbar'
 import prismadb from '@/lib/prismadb';

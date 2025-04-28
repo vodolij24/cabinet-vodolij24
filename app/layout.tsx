@@ -1,9 +1,5 @@
-import { ClerkProvider } from '@clerk/nextjs'
 import { Inter } from 'next/font/google'
-
-import { ModalProvider } from '@/providers/modal-provider'
-import { ToastProvider } from '@/providers/toast-provider'
-import { ThemeProvider } from '@/providers/theme-provider'
+import { Providers } from '@/providers/providers'
 
 import './globals.css'
 
@@ -22,17 +18,9 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ClerkProvider>
-          <ThemeProvider 
-            attribute="class" 
-            defaultTheme="system" 
-            enableSystem
-          >
-            <ToastProvider />
-            <ModalProvider />
-            {children}
-          </ThemeProvider>
-        </ClerkProvider>
+        <Providers>  {/* Now here is your client side part */}
+          {children}
+        </Providers>
       </body>
     </html>
   )
