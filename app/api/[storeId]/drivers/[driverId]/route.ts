@@ -5,29 +5,29 @@ import prismadb from "@/lib/prismadb";
 
 export async function GET(
   req: Request,
-  { params }: { params: { driverId: string } }
+  { params }: { params: Promise<{ driverId: string }> }
 ) {
   try {
-    if (!params.driverId) {
+    if (!(await params).driverId) {
       return new NextResponse("Driver id is required", { status: 400 });
     }
 
     const size = await prismadb.drivers.findUnique({
       where: {
-        id: Number(params.driverId)
-      }
+        id: Number((await params).driverId),
+      },
     });
-  
+
     return NextResponse.json(size?.id);
   } catch (error) {
-    console.log('[DRIVER_GET]', error);
+    console.log("[DRIVER_GET]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { driverId: string, storeId: string } }
+  { params }: { params: Promise<{ driverId: string; storeId: string }> }
 ) {
   try {
     //const { userId } = await auth();
@@ -36,10 +36,10 @@ export async function DELETE(
       return new NextResponse("Unauthenticated", { status: 403 });
     }
     */
-    if (!params.driverId) {
+    if (!(await params).driverId) {
       return new NextResponse("Driver id is required", { status: 400 });
     }
-/*
+    /*
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
@@ -53,21 +53,20 @@ export async function DELETE(
 */
     const size = await prismadb.drivers.delete({
       where: {
-        id: Number(params.driverId)
-      }
+        id: Number((await params).driverId),
+      },
     });
-  
+
     return NextResponse.json(size.id);
   } catch (error) {
-    console.log('[DRIVER_DELETE]', error);
+    console.log("[DRIVER_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
-
+}
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { driverId: string, storeId: string } }
+  { params }: { params: Promise<{ driverId: string; storeId: string }> }
 ) {
   try {
     //const { userId } = await auth();
@@ -75,7 +74,7 @@ export async function PATCH(
     const body = await req.json();
 
     const { name, phone, registration_number, chat_id } = body;
-/*
+    /*
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 403 });
     }
@@ -93,14 +92,15 @@ export async function PATCH(
     }
 
     if (!registration_number) {
-      return new NextResponse("registration_number is required", { status: 400 });
+      return new NextResponse("registration_number is required", {
+        status: 400,
+      });
     }
 
-
-    if (!params.driverId) {
+    if (!(await params).driverId) {
       return new NextResponse("Driver id is required", { status: 400 });
     }
-/*
+    /*
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
@@ -114,19 +114,19 @@ export async function PATCH(
 */
     const driver = await prismadb.drivers.update({
       where: {
-        id: Number(params.driverId)
+        id: Number((await params).driverId),
       },
       data: {
         name,
         registration_number,
         phone,
-        chat_id
-      }
+        chat_id,
+      },
     });
-  
+
     return NextResponse.json(driver.id);
   } catch (error) {
-    console.log('[DRIVER_PATCH]', error);
+    console.log("[DRIVER_PATCH]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}
