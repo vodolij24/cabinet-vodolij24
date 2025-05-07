@@ -2,13 +2,13 @@ import { format } from "date-fns";
 
 import prismadb from "@/lib/prismadb";
 
-import { DriverColumn } from "./components/columns"
+import { DailyStatColumn } from "./components/columns"
 import { SizesClient } from "./components/client";
 
 const SizesPage = async ({
 }: {
 }) => {
-  const drivers = await prismadb.drivers.findMany({
+  const daily_statistics = await prismadb.daily_statistics.findMany({
     where: {
     },
     orderBy: {
@@ -16,18 +16,22 @@ const SizesPage = async ({
     }
   });
 
-  const formattedSizes: DriverColumn[] = drivers.map((item) => ({
+  const formattedStatistic: DailyStatColumn[] = daily_statistics.map((item) => ({
     id: item.id,
-    name: item.name,
-    chat_id: item.chat_id,
-    phone: item.phone,
-    registration_number: item.registration_number
+    date: item.date,
+    totalWater: item.totalWater,
+    totalTransactions: item.totalTransactions,
+    uniqueUsers: item.uniqueUsers,
+    topUserId: item.topUserId,
+    topUserVolume: item.topUserVolume,
+    topDeviceId: item.topDeviceId,
+    topDeviceTransactions: item.topDeviceTransactions
   }));
 
   return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <SizesClient data={formattedSizes} />
+        <SizesClient data={formattedStatistic} />
       </div>
     </div>
   );

@@ -16,10 +16,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AlertModal } from "@/components/modals/alert-modal";
 
-import { DriverColumn } from "./columns";
+import { DailyStatColumn } from "./columns";
 
 interface CellActionProps {
-  data: DriverColumn;
+  data: DailyStatColumn;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({

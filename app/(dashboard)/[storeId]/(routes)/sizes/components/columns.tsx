@@ -1,36 +1,56 @@
 "use client"
 
-import { ColumnDef } from "@tanstack/react-table"
+import { ColumnDef } from '@tanstack/table-core';
 
 import { CellAction } from "./cell-action"
 
-export type DriverColumn = {
+export type DailyStatColumn = {
   id: number;
-  chat_id: bigint;
-  name: string | null;
-  registration_number: string | null;
-  phone: string | null;
+  date: string;
+  totalWater: number;
+  totalTransactions: number;
+  uniqueUsers: number;
+  topUserId: number | null;
+  topUserVolume: number | null;
+  topDeviceId: number | null;
+  topDeviceTransactions: number | null;  
 }
 
-export const columns: ColumnDef<DriverColumn>[] = [
+export const columns: ColumnDef<DailyStatColumn>[] = [
   {
-    accessorKey: "name",
-    header: "Імя",
+    accessorKey: "date",
+    header: "Дата",
   },
   {
-    accessorKey: "chat_id",
-    header: "Чат ІД",
+    accessorKey: "totalWater",
+    header: "Налито",
   },
   {
-    accessorKey: "registration_number",
-    header: "Номер ТЗ",
+    accessorKey: "totalTransactions",
+    header: "Транзакції",
   },
   {
-    accessorKey: "phone",
-    header: "Номер телефону",
+    accessorKey: "uniqueUsers",
+    header: "Користувачі",
+  },
+  {
+    accessorKey: "topUserId",
+    header: "Топ Карта",
+  },
+  {
+    accessorKey: "topUserVolume",
+    header: "Обє’м лідера",
+  },
+  {
+    accessorKey: "topDeviceId",
+    header: "Топ Апарат",
+  },
+  {
+    accessorKey: "topDeviceTransactions",
+    header: "Наливи Топ Апарату",
   },
   {
     id: "actions",
-    cell: ({ row }) => <CellAction data={row.original} />
+  /*  cell: ({ row }) => <CellAction data={row.original} />*/
   },
 ];

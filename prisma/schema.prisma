@@ -9,238 +9,134 @@ datasource db {
   relationMode = "prisma"
 }
 
-
-model Store {
-  id              String    @id @default(uuid())
-  name            String
-  userId          String
-  billboards      Billboard[] @relation("StoreToBillboard")
-  categories      Category[] @relation("StoreToCategory")
-  products        Product[]  @relation("StoreToProduct")
-  sizes           Size[]     @relation("StoreToSize")
-  colors          Color[]     @relation("StoreToColor")
-  orders          Order[]     @relation("StoreToOrder")
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-}
-
-model cars {
-  id     Int    @id @default(autoincrement())
-  name   String @db.VarChar(255)
-  seats  Int
-  scheme String @db.VarChar(255)
-}
-
-model cities {
-  id    Int    @id @default(autoincrement())
-  city  String @db.VarChar(255)
-  emoji String @db.VarChar(255)
-}
-
-model drivers {
-  id                  Int     @id @default(autoincrement())
-  chat_id             BigInt  @unique
-  name                String? @db.VarChar(255)
-  registration_number String? @db.VarChar(255)
-  phone               String? @db.VarChar(255)
-}
-
-model local_orders {
-  id                 Int      @id @default(autoincrement())
-  client             String   @db.VarChar(255)
-  city               String   @db.VarChar(255)
-  pickup_location    String   @db.VarChar(255)
-  direction_location String?  @db.VarChar(255)
-  driver             Int?
-  comment            String?  @db.VarChar(255)
-  phone              String?  @db.VarChar(255)
-  price              String?  @db.VarChar(255)
-  createdAt          DateTime @db.Timestamptz(6)
-  updatedAt          DateTime @db.Timestamptz(6)
-
-  @@map("local-orders")
-}
-
-model locations {
-  id      Int    @id @default(autoincrement())
-  city    String @db.VarChar(255)
-  country String @db.VarChar(255)
-}
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model newtable {
-// }
-
-model orders {
-  id        Int      @id @default(autoincrement())
-  user      Int
-  ride_id   Int
-  seat      Int
-  comment   String?  @db.VarChar(255)
-  createdAt DateTime @db.Timestamptz(6)
-  updatedAt DateTime @db.Timestamptz(6)
-}
-
-model rides {
-  id       Int    @id @default(autoincrement())
-  route_id Int
-  car_id   Int?
-  seats_id Int?
-  price    Int?
-  time     String @db.VarChar(255)
-  date     Int
-  month    Int
-  year     Int
-}
-
-model routes {
-  id             Int    @id @default(autoincrement())
-  departure_city String @db.VarChar(255)
-  arrival_city   String @db.VarChar(255)
-}
-
-model seats {
-  id      Int   @id @default(autoincrement())
-  ride_id Int
-  car_id  Int
-  seats   Int[]
-}
-
-model taxi_routes {
-  id             Int       @id @default(autoincrement())
-  departure_city String    @db.VarChar(255)
-  target_city    String    @db.VarChar(255)
-  area           String    @db.VarChar(255)
-  departure_time DateTime? @db.Timestamptz(6)
-  arrival_time   DateTime? @db.Timestamptz(6)
-}
-
 model users {
-  id              Int      @id @default(autoincrement())
+  id              Int      @default(autoincrement())
   chat_id         BigInt   @unique
-  favorite_city   String?  @db.VarChar(255)
+  firstname       String?  @db.VarChar(255)
+  lastname        String?  @db.VarChar(255)
+  fathersname     String?  @db.VarChar(255)
+  birthdaydate    String?  @db.VarChar(255)
+  isAuthenticated Boolean  @default(false)
   phone           String?  @db.VarChar(255)
-  dialogue_status String?  @db.VarChar(255)
+  goods           String?  @db.VarChar(255)
+  units           String?  @db.VarChar(255)
+  dialoguestatus  String?  @default("") @db.VarChar(255)
+  favoriteDevice  String?  @db.VarChar(255)
   createdAt       DateTime @db.Timestamptz(6)
   updatedAt       DateTime @db.Timestamptz(6)
 }
 
-
-model Order {
-  id        String    @id @default(uuid())
-  storeId     String    // Foreign Key to Store
-  store       Store     @relation("StoreToOrder", fields: [storeId], references: [id])
-  orderItems OrderItem[] // Relation to OrderItem model
-  isPaid     Boolean   @default(false)
-  phone      String    @default("")
-  address    String    @default("")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@index([storeId])
+model Apiusers {
+  id           Int      @default(autoincrement())
+  user_id      BigInt   @unique
+  chat_id      BigInt   @unique
+  name         String?  @db.VarChar(255)
+  birthdaydate String?  @db.VarChar(255)
+  phone        String?  @db.VarChar(255)
+  email        String?  @db.VarChar(255)
+  cards        String?  @db.VarChar(255)
+  createdAt    DateTime @db.Timestamptz(6)
+  updatedAt    DateTime @db.Timestamptz(6)
 }
 
-// Intermediary for a many-to-many relationship
-model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String  // Foreign Key to Order
-  order     Order   @relation(fields: [orderId], references: [id])
-  productId String  // Foreign Key to Product
-  product   Product @relation(fields: [productId], references: [id])
-
-  @@index([orderId])
-  @@index([productId])
+model achievements {
+  id          Int     @id @default(autoincrement())
+  code        Int?
+  title       String? @db.VarChar(255)
+  description String? @db.VarChar(255)
+  icon        String? @db.VarChar(255)
 }
 
-model Product {
-  id          String    @id @default(uuid())
-  storeId     String    // Foreign Key to Store
-  store       Store     @relation("StoreToProduct", fields: [storeId], references: [id])
-  categoryId  String    // Foreign Key to Category
-  category    Category  @relation("CategoryToProduct", fields: [categoryId], references: [id])
-  name        String
-  price       Decimal
-  isFeatured  Boolean   @default(false)
-  isArchived  Boolean   @default(false)
-  sizeId      String    // Foreign Key to Size
-  size        Size      @relation(fields: [sizeId], references: [id])
-  colorId     String    // Foreign Key to Color
-  color       Color     @relation(fields: [colorId], references: [id])
-  images      Image[]   // Relation to Image model
-  orderItems  OrderItem[]   // Relation to Order model
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model bonuses {
+  id                Int      @default(autoincrement())
+  user_id           Int?
+  balance           Int?
+  transactionAmount Int?
+  transactionType   String?  @db.VarChar(255)
+  createdAt         DateTime @db.Timestamptz(6)
+  updatedAt         DateTime @db.Timestamptz(6)
 
-  @@index([storeId])
-  @@index([categoryId])
-  @@index([sizeId])
-  @@index([colorId])
+  @@ignore
 }
 
+model bot_transactions {
+  id              Int      @id @default(autoincrement())
+  user_id         Int?
+  device          Int
+  date            String   @db.VarChar(255)
+  waterRequested  Float?
+  waterFullfilled Float?
+  cashPaymant     Float?
+  cardPaymant     Float?
+  onlinePaymant   Float?
+  paymantChange   Float?
+  isAutorized     Boolean?
+  cardId          Int?
 
-model Billboard {
-  id          String @id @default(uuid())
-  storeId     String
-  store       Store @relation("StoreToBillboard", fields: [storeId], references: [id])
-  label       String
-  imageUrl    String
-  categories  Category[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([storeId])
+  @@map("bot-transactions")
 }
 
-model Category {
-  id          String      @id @default(uuid())
-  storeId     String      // Foreign Key to Store
-  store       Store       @relation("StoreToCategory", fields: [storeId], references: [id])
-  billboardId String      // Foreign Key to Billboard
-  billboard   Billboard   @relation(fields: [billboardId], references: [id])
-  name        String
-  products    Product[]   @relation("CategoryToProduct")
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  @@index([storeId])
-  @@index([billboardId])
+model cards {
+  id            Int      @default(autoincrement())
+  cardId        Int      @unique
+  Number        String?  @db.VarChar(255)
+  Card          String?  @db.VarChar(255)
+  Type          String?  @db.VarChar(255)
+  CardGroup     String?  @db.VarChar(255)
+  WaterQty      Int?
+  AllQty        Int?
+  MoneyPerMonth Int?
+  LitersPerDay  Int?
+  Discount      Int?
+  status        String?  @db.VarChar(255)
+  createdAt     DateTime @db.Timestamptz(6)
+  updatedAt     DateTime @db.Timestamptz(6)
 }
 
-
-
-model Size {
-  id          String    @id @default(uuid())
-  storeId     String    // Foreign Key to Store
-  store       Store     @relation("StoreToSize", fields: [storeId], references: [id])
-  name        String
-  value       String
-  products    Product[] // Relation to Product model
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([storeId])
+model daily_statistics {
+  id                    Int      @id @default(autoincrement())
+  date                  String   @unique @db.VarChar(255)
+  totalWater            Float
+  totalTransactions     Int
+  uniqueUsers           Int
+  topUserId             Int?
+  topUserVolume         Float?
+  topDeviceId           Int?
+  topDeviceTransactions Int?
+  topDeviceVolume       Float?
+  totalRevenue          Float
+  cashRevenue           Float
+  cardRevenue           Float
+  onlineRevenue         Float
+  failedTransactions    Int
+  createdAt             DateTime @db.Timestamptz(6)
+  updatedAt             DateTime @db.Timestamptz(6)
 }
 
-model Color {
-  id          String   @id @default(uuid())
-  storeId     String   // Foreign Key to Store
-  store       Store    @relation("StoreToColor", fields: [storeId], references: [id])
-  name        String
-  value       String
-  products    Product[] // Relation to Product model
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model transactions {
+  id              Int      @default(autoincrement())
+  user_id         Int?
+  device          Int
+  date            String   @db.VarChar(255)
+  waterRequested  Float?   @db.Real
+  waterFullfilled Float?   @db.Real
+  cashPaymant     Float?   @db.Real
+  cardPaymant     Float?   @db.Real
+  onlinePaymant   Float?   @db.Real
+  paymantChange   Float?   @db.Real
+  isAutorized     Boolean?
+  cardId          Int?
+  createdAt       DateTime @db.Timestamptz(6)
+  updatedAt       DateTime @db.Timestamptz(6)
 
-  @@index([storeId])
+  @@ignore
 }
 
-model Image {
-  id          String   @id @default(uuid())
-  productId   String   // Foreign Key to Product
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url         String   // URL of the image
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([productId])
+model user_achievements {
+  id             Int     @id @default(autoincrement())
+  user_id        BigInt?
+  achievement_id Int?
+  achieved_at    String? @db.VarChar(255)
 }
