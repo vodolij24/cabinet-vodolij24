@@ -38,16 +38,7 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 */
-    const driver = await prismadb.drivers.create({
-      data: {
-        name,
-        chat_id,
-        phone,
-        registration_number
-      }
-    });
   
-    return NextResponse.json(driver.id);
   } catch (error) {
     console.log('[DRIVER_POST]', error);
     return new NextResponse("Internal error", { status: 500 });
@@ -64,7 +55,7 @@ export async function GET(
       return new NextResponse("Store id is required", { status: 400 });
     }
     */
-    const sizes = await prismadb.drivers.findMany({
+    const sizes = await prismadb.daily_statistics.findMany({
       where: {
       /*  storeId: params.storeId */
       }

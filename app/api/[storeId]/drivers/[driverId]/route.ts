@@ -12,7 +12,7 @@ export async function GET(
       return new NextResponse("Driver id is required", { status: 400 });
     }
 
-    const size = await prismadb.drivers.findUnique({
+    const size = await prismadb.daily_statistics.findUnique({
       where: {
         id: Number((await params).driverId),
       },
@@ -51,7 +51,7 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 */
-    const size = await prismadb.drivers.delete({
+    const size = await prismadb.daily_statistics.delete({
       where: {
         id: Number((await params).driverId),
       },
@@ -112,15 +112,11 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 */
-    const driver = await prismadb.drivers.update({
+    const driver = await prismadb.daily_statistics.update({
       where: {
         id: Number((await params).driverId),
       },
       data: {
-        name,
-        registration_number,
-        phone,
-        chat_id,
       },
     });
 
