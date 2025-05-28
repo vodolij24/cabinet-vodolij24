@@ -28,7 +28,7 @@ interface DataTableProps<TData, TValue> {
   searchKey: string;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTableTransactions<TData, TValue>({
   columns,
   data,
   searchKey,

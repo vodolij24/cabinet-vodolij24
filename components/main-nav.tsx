@@ -15,34 +15,34 @@ export function MainNav({
   const routes = [
     {
       href: `/${params.storeId}`,
-      label: 'Overview',
+      label: 'Аналітика',
       active: pathname === `/${params.storeId}`,
     },
-  /*  {
+    {
       href: `/${params.storeId}/categories`,
-      label: 'Categories',
+      label: 'Ачівки',
       active: pathname === `/${params.storeId}/categories`,
-    },*/
+    },
     {
       href: `/${params.storeId}/sizes`,
-      label: 'Sizes',
+      label: 'Статистика',
       active: pathname === `/${params.storeId}/sizes`,
-    },/*
+    },
     {
       href: `/${params.storeId}/colors`,
-      label: 'Colors',
+      label: 'Користувачі',
       active: pathname === `/${params.storeId}/colors`,
     },
     {
-      href: `/${params.storeId}/products`,
-      label: 'Products',
-      active: pathname === `/${params.storeId}/products`,
+      href: `/${params.storeId}/transactions`,
+      label: 'Транзакції',
+      active: pathname === `/${params.storeId}/transactions`,
     },
     {
       href: `/${params.storeId}/orders`,
-      label: 'Orders',
+      label: 'Картки',
       active: pathname === `/${params.storeId}/orders`,
-    },*/
+    },
   ]
 
   return (
