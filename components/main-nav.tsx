@@ -43,6 +43,11 @@ export function MainNav({
       label: 'Картки',
       active: pathname === `/${params.storeId}/orders`,
     },
+    {
+      href: `/${params.storeId}/tasks`,
+      label: 'Задачі',
+      active: pathname === `/${params.storeId}/tasks`,
+    },
   ]
 
   return (
