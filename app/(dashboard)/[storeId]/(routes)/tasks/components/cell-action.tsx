@@ -33,8 +33,8 @@ export const CellAction: React.FC<CellActionProps> = ({
   const onConfirm = async () => {
     try {
       setLoading(true);
-      await axios.delete(`/api/1/drivers/${data.id}`);
-      toast.success('Водія видалено.');
+      await axios.delete(`/api/1/tasks/${data.id}`);
+      toast.success('Завдання видалено.');
       router.refresh();
     } catch (error) {
       toast.error('Трапилась помилка.');
@@ -46,7 +46,7 @@ export const CellAction: React.FC<CellActionProps> = ({
 
   const onCopy = (id: number) => {
     navigator.clipboard.writeText(id.toString());
-    toast.success('ІД водія скопійовано в буфер.');
+    toast.success('ІД завдання скопійовано в буфер.');
   }
 
   return (
@@ -72,7 +72,7 @@ export const CellAction: React.FC<CellActionProps> = ({
             <Copy className="mr-2 h-4 w-4" /> Копіювати ід
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => router.push(`/${params.storeId}/sizes/${data.id}`)}
+            onClick={() => router.push(`/${params.storeId}/tasks/${data.id}`)}
           >
             <Edit className="mr-2 h-4 w-4" /> Редагувати
           </DropdownMenuItem>

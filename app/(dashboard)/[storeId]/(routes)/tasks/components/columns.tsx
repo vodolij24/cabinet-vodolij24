@@ -8,6 +8,7 @@ import { TaskPriority, TaskStatus } from '@/lib/generated/prisma';
 export type TaskColumn = {
   id: number;
   title: string;
+  deviceId: number | null;
   description: string | null;
   status: string | null;
   priority: string | null;
@@ -25,6 +26,10 @@ export const columns: ColumnDef<TaskColumn>[] = [
   {
     accessorKey: "title",
     header: "Задача",
+  },
+  {
+    accessorKey: "deviceId",
+    header: "Апарат",
   },
   {
     accessorKey: "description",

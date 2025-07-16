@@ -19,13 +19,14 @@ const SizesPage = async ({
   const formattedTask: TaskColumn[] = daily_statistics.map((item) => ({
         id: item.id,
         title: item.title,
+        deviceId: item.deviceId,
         description: item.description,
         status: item.status,
         priority: item.priority,
         completedAt: item.completedAt,
         workerId: item.workerId,
-        createdAt: item.completedAt, 
-        updatedAt: item.updatedAt
+        createdAt: item.createdAt.toLocaleString(), 
+        updatedAt: item.updatedAt.toLocaleString()
   }));
 
   return (

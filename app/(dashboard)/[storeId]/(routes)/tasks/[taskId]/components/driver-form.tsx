@@ -26,6 +26,7 @@ import { AlertModal } from "@/components/modals/alert-modal"
 
 const formSchema = z.object({
   title: z.string().min(1, "Заголовок завдання обовязковий"),
+  deviceId: z.number().int().positive("DEVICE ID POSITIVE NUMBER"),
   description: z.string() ,
   priority: z.string() ,
 });
@@ -54,10 +55,12 @@ export const DriversForm: React.FC<TaskFormProps> = ({
     resolver: zodResolver(formSchema),
     defaultValues: initialData ? {
       title: initialData.title || '',
+      deviceId: Number(initialData.deviceId) || 0,
       description: initialData.description || '',
       priority: initialData.priority || 'medium',
     } : {
       title: '',
+      deviceId: 0,
       description: '',
       priority: 'medium',
     }
@@ -133,6 +136,20 @@ export const DriversForm: React.FC<TaskFormProps> = ({
                   <FormLabel>Завдання</FormLabel>
                   <FormControl>
                     <Input disabled={loading} placeholder="Заголовок завдання" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="deviceId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Апарат</FormLabel>
+                  <FormControl>
+                    <Input type="number" disabled={loading} placeholder="Номер апарату" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

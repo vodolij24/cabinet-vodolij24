@@ -5,29 +5,29 @@ import prismadb from "@/lib/prismadb";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ driverId: string }> }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
-    if (!(await params).driverId) {
-      return new NextResponse("Driver id is required", { status: 400 });
+    if (!(await params).taskId) {
+      return new NextResponse("Task id is required", { status: 400 });
     }
 
-    const size = await prismadb.drivers.findUnique({
+    const task = await prismadb.tasks.findUnique({
       where: {
-        id: Number((await params).driverId),
+        id: Number((await params).taskId),
       },
     });
 
-    return NextResponse.json(size?.id);
+    return NextResponse.json(task?.id);
   } catch (error) {
-    console.log("[DRIVER_GET]", error);
+    console.log("[TASK_GET]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
 
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ driverId: string; storeId: string }> }
+  { params }: { params: Promise<{ taskId: string; storeId: string }> }
 ) {
   try {
     //const { userId } = await auth();
@@ -36,8 +36,8 @@ export async function DELETE(
       return new NextResponse("Unauthenticated", { status: 403 });
     }
     */
-    if (!(await params).driverId) {
-      return new NextResponse("Driver id is required", { status: 400 });
+    if (!(await params).taskId) {
+      return new NextResponse("Task id is required", { status: 400 });
     }
     /*
     const storeByUserId = await prismadb.store.findFirst({
@@ -51,54 +51,41 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 */
-    const size = await prismadb.drivers.delete({
+    const size = await prismadb.tasks.delete({
       where: {
-        id: Number((await params).driverId),
+        id: Number((await params).taskId),
       },
     });
 
     return NextResponse.json(size.id);
   } catch (error) {
-    console.log("[DRIVER_DELETE]", error);
+    console.log("[TASK_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ driverId: string; storeId: string }> }
+  { params }: { params: Promise<{ taskId: string; storeId: string }> }
 ) {
   try {
     //const { userId } = await auth();
 
     const body = await req.json();
 
-    const { name, phone, registration_number, chat_id } = body;
+    const { title, description, deviceId, priority } = body;
     /*
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 403 });
     }
 */
-    if (!name) {
-      return new NextResponse("Name is required", { status: 400 });
+    if (!title) {
+      return new NextResponse("Title is required", { status: 400 });
     }
 
-    if (!chat_id) {
-      return new NextResponse("Chat id is required", { status: 400 });
-    }
 
-    if (!phone) {
-      return new NextResponse("phone is required", { status: 400 });
-    }
-
-    if (!registration_number) {
-      return new NextResponse("registration_number is required", {
-        status: 400,
-      });
-    }
-
-    if (!(await params).driverId) {
-      return new NextResponse("Driver id is required", { status: 400 });
+    if (!(await params).taskId) {
+      return new NextResponse("Task id is required", { status: 400 });
     }
     /*
     const storeByUserId = await prismadb.store.findFirst({
@@ -112,21 +99,21 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 */
-    const driver = await prismadb.drivers.update({
+    const driver = await prismadb.tasks.update({
       where: {
-        id: Number((await params).driverId),
+        id: Number((await params).taskId),
       },
       data: {
-        name,
-        registration_number,
-        phone,
-        chat_id,
+        title,
+        description,
+        deviceId,
+        priority,
       },
     });
 
     return NextResponse.json(driver.id);
   } catch (error) {
-    console.log("[DRIVER_PATCH]", error);
+    console.log("[TASK_PATCH]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }

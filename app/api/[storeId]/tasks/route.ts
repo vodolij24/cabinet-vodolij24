@@ -12,7 +12,7 @@ export async function POST(
 
     const body = await req.json();
 
-    const { title, description, priority } = body;
+    const { title, deviceId, description, priority } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 403 });
@@ -41,6 +41,7 @@ export async function POST(
     const task = await prismadb.tasks.create({
       data: {
         title,
+        deviceId,
         description,
         priority,
         status: 'todo'
