@@ -13,9 +13,9 @@ export type TaskColumn = {
   status: string | null;
   priority: string | null;
   completedAt: Date | null;
-  workerId: number | null;
-  createdAt: Date | null;  
-  updatedAt: Date;  
+  workerId: string | null | undefined;
+  createdAt: string | null ;  
+  updatedAt: string;  
 }
 
 export const columns: ColumnDef<TaskColumn>[] = [

@@ -12,9 +12,17 @@ const SizesPage = async ({
     where: {
     },
     orderBy: {
-      id: 'desc'
+      status: 'desc'
     }
   });
+
+  const workers = await prismadb.workers.findMany({
+    where: {
+
+    }
+  })
+
+  console.log(workers)
 
   const formattedTask: TaskColumn[] = daily_statistics.map((item) => ({
         id: item.id,
@@ -24,7 +32,7 @@ const SizesPage = async ({
         status: item.status,
         priority: item.priority,
         completedAt: item.completedAt,
-        workerId: item.workerId,
+        workerId: item.workerId ? workers.find(worker => worker.id == item.workerId)?.name : '',
         createdAt: item.createdAt.toLocaleString(), 
         updatedAt: item.updatedAt.toLocaleString()
   }));

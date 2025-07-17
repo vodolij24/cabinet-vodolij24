@@ -116,7 +116,7 @@ model daily_statistics {
 
 model workers {
   id        Int     @id @default(autoincrement())
-  chatId    BigInt  @unique
+  chat_id    BigInt  @unique
   name      String?
   phone     String?
   active    Boolean @default(true)

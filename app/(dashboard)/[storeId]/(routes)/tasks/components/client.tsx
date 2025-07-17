@@ -30,7 +30,7 @@ export const SizesClient: React.FC<SizesClientProps> = ({
       
       </div>
       <Separator />
-      <DataTable searchKey="id" columns={columns} data={data} />
+      <DataTable searchKey="deviceId" columns={columns} data={data} />
     </>
   );
 };
