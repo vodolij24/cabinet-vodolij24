@@ -1,7 +1,31 @@
 import { NextResponse } from 'next/server';
+import axios from 'axios';
 
 import prismadb from '@/lib/prismadb';
 import { auth } from '@clerk/nextjs/server';
+import { tasks } from '@/lib/generated/prisma';
+
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+export async function sendTelegramTaskNotification(chatId: string, task: tasks, status: string) {
+  const message = `📝 ${status}:
+
+📌 *${task.title}*
+🗒️ ${task.description || 'Без опису'}
+📟 Апарат №: ${task.deviceId || 'Невідомо'}
+🎯 Пріоритет: ${task.priority || 'Не вказано'}`
+
+
+  try {
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      chat_id: chatId,
+      text: message,
+      parse_mode: "Markdown"
+    });
+  } catch (err) {
+    console.error('Помилка при надсиланні повідомлення в Telegram:', err);
+  }
+}
  
 export async function POST(
   req: Request,
@@ -30,18 +54,8 @@ export async function POST(
       return new NextResponse("WorkerId is required", { status: 400 });
     }
 
-/*
-    const storeByUserId = await prismadb.store.findFirst({
-      where: {
-        id: params.storeId,
-        userId
-      }
-    });
+ console.log(title, priority)
 
-    if (!storeByUserId) {
-      return new NextResponse("Unauthorized", { status: 405 });
-    }
-*/  console.log(title, priority)
     const task = await prismadb.tasks.create({
       data: {
         title,
@@ -52,6 +66,15 @@ export async function POST(
         status: 'todo'
       }
     });
+
+    const worker = await prismadb.workers.findUnique({
+      where: { id: parseInt(workerId) },
+      select: { chat_id: true, name: true }
+    });
+
+    if (worker?.chat_id) {
+      await sendTelegramTaskNotification(String(worker.chat_id), task, 'Нове завдання');
+    }
   
     return NextResponse.json(task.id);
   } catch (error) {

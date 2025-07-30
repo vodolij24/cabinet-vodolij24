@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import axios from 'axios';
 
 import prismadb from "@/lib/prismadb";
+import { sendTelegramTaskNotification } from "../route";
 //import { auth } from "@clerk/nextjs/server";
 
 export async function GET(
@@ -111,6 +113,15 @@ export async function PATCH(
         workerId: parseInt(workerId),
       },
     });
+
+    const worker = await prismadb.workers.findUnique({
+      where: { id: parseInt(workerId) },
+      select: { chat_id: true, name: true }
+    });
+
+    if (worker?.chat_id) {
+      await sendTelegramTaskNotification(String(worker.chat_id), task, 'Завдання змінено');
+    }
 
     return NextResponse.json(task.id);
   } catch (error) {
