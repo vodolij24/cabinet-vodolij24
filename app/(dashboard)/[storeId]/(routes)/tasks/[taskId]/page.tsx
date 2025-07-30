@@ -19,10 +19,19 @@ const SizePage = async ({ params }: SizePageProps) => {
     },
   });
 
+  const workers = await prismadb.workers.findMany({
+    where: {
+      active: true,
+    }
+  });
+
   return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <DriversForm initialData={tasks} />
+        <DriversForm 
+            initialData={tasks} 
+            workers={workers}
+        />
       </div>
     </div>
   );

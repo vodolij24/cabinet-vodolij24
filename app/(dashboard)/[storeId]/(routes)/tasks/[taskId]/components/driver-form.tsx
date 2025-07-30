@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "react-hot-toast"
 import { Trash } from "lucide-react"
-import { tasks } from "@/lib/generated/prisma"
+import { tasks, workers } from "@/lib/generated/prisma"
 import { useParams, useRouter } from "next/navigation"
 
 import { Input } from "@/components/ui/input"
@@ -23,22 +23,26 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Heading } from "@/components/ui/heading"
 import { AlertModal } from "@/components/modals/alert-modal"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const formSchema = z.object({
   title: z.string().min(1, "Заголовок завдання обовязковий"),
   deviceId: z.number().int().positive("DEVICE ID POSITIVE NUMBER"),
   description: z.string() ,
   priority: z.string() ,
+  workerId: z.string().min(1),
 });
 
 type TaskFormValues = z.infer<typeof formSchema>
 
 interface TaskFormProps {
-  initialData: tasks | null;
+    initialData: tasks | null;
+    workers: workers[]
 };
 
 export const DriversForm: React.FC<TaskFormProps> = ({
-  initialData
+  initialData,
+  workers
 }) => {
   const params = useParams();
   const router = useRouter();
@@ -58,11 +62,13 @@ export const DriversForm: React.FC<TaskFormProps> = ({
       deviceId: Number(initialData.deviceId) || 0,
       description: initialData.description || '',
       priority: initialData.priority || 'medium',
+      workerId: String(initialData.workerId) || '',
     } : {
       title: '',
       deviceId: 0,
       description: '',
       priority: 'medium',
+      workerId: ''
     }
   });
   
@@ -189,7 +195,28 @@ export const DriversForm: React.FC<TaskFormProps> = ({
                 </FormItem>
               )}
             />
-
+            <FormField
+              control={form.control}
+              name="workerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Виконавець</FormLabel>
+                  <Select disabled={loading} onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue defaultValue={field.value} placeholder="Обрати працівника" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {workers.map((worker) => (
+                        <SelectItem key={worker.id} value={String(worker.id)}>{worker.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             
 
           </div>

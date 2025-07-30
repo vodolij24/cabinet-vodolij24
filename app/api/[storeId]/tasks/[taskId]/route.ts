@@ -51,13 +51,13 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 */
-    const size = await prismadb.tasks.delete({
+    const task = await prismadb.tasks.delete({
       where: {
         id: Number((await params).taskId),
       },
     });
 
-    return NextResponse.json(size.id);
+    return NextResponse.json(task.id);
   } catch (error) {
     console.log("[TASK_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });
@@ -73,7 +73,7 @@ export async function PATCH(
 
     const body = await req.json();
 
-    const { title, description, deviceId, priority } = body;
+    const { title, description, deviceId, priority, workerId } = body;
     /*
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 403 });
@@ -99,7 +99,7 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 405 });
     }
 */
-    const driver = await prismadb.tasks.update({
+    const task = await prismadb.tasks.update({
       where: {
         id: Number((await params).taskId),
       },
@@ -108,10 +108,11 @@ export async function PATCH(
         description,
         deviceId,
         priority,
+        workerId: parseInt(workerId),
       },
     });
 
-    return NextResponse.json(driver.id);
+    return NextResponse.json(task.id);
   } catch (error) {
     console.log("[TASK_PATCH]", error);
     return new NextResponse("Internal error", { status: 500 });

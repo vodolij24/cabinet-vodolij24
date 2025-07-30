@@ -12,7 +12,7 @@ export async function POST(
 
     const body = await req.json();
 
-    const { title, deviceId, description, priority } = body;
+    const { title, deviceId, description, priority, workerId } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 403 });
@@ -24,6 +24,10 @@ export async function POST(
 
     if (!priority) {
       return new NextResponse("Priority is required", { status: 400 });
+    }
+
+    if (!workerId) {
+      return new NextResponse("WorkerId is required", { status: 400 });
     }
 
 /*
@@ -44,6 +48,7 @@ export async function POST(
         deviceId,
         description,
         priority,
+        workerId: parseInt(workerId),
         status: 'todo'
       }
     });
