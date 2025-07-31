@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import axios from 'axios';
 
 import prismadb from "@/lib/prismadb";
-import { sendTelegramTaskNotification } from "../route";
+import { sendTelegramTaskNotification } from "@/lib/telegram";
 //import { auth } from "@clerk/nextjs/server";
 
 export async function GET(

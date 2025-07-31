@@ -4,28 +4,9 @@ import axios from 'axios';
 import prismadb from '@/lib/prismadb';
 import { auth } from '@clerk/nextjs/server';
 import { tasks } from '@/lib/generated/prisma';
-
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-
-export async function sendTelegramTaskNotification(chatId: string, task: tasks, status: string) {
-  const message = `📝 ${status}:
-
-📌 *${task.title}*
-🗒️ ${task.description || 'Без опису'}
-📟 Апарат №: ${task.deviceId || 'Невідомо'}
-🎯 Пріоритет: ${task.priority || 'Не вказано'}`
+import { sendTelegramTaskNotification } from '@/lib/telegram';
 
 
-  try {
-    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: chatId,
-      text: message,
-      parse_mode: "Markdown"
-    });
-  } catch (err) {
-    console.error('Помилка при надсиланні повідомлення в Telegram:', err);
-  }
-}
  
 export async function POST(
   req: Request,
