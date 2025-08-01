@@ -3,7 +3,7 @@ import axios from 'axios';
 
 import prismadb from '@/lib/prismadb';
 import { auth } from '@clerk/nextjs/server';
-import { tasks } from '@/lib/generated/prisma';
+
 import { sendTelegramTaskNotification } from '@/lib/telegram';
 
 

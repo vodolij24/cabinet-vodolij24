@@ -1,12 +1,27 @@
 import prismadb from "@/lib/prismadb";
 
-export const getTotalRevenue = async (storeId: string) => {
-  const paidOrders = await prismadb.daily_statistics.findMany({
+const now = new Date();
+const year = now.getFullYear();
+const month = String(now.getMonth() + 1).padStart(2, '0');
+const yearMonth = `${year}-${month}`;
+
+export const getTotalRevenue = async () => {
+  const paidOrders = await prismadb.bot_transactions.findMany({
     where: {
+      date: {
+        startsWith: yearMonth,
+      },
+    },
+    select: {
+      waterFullfilled: true,
     },
   });
 
-  const totalRevenue = 0
+  console.log(paidOrders)
+  
+  const totalWater = paidOrders.reduce((sum, tx) => sum + (tx.waterFullfilled ?? 0), 0).toFixed(0);
 
-  return totalRevenue;
+  console.log(totalWater)
+
+  return totalWater;
 };
