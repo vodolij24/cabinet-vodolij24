@@ -2,20 +2,15 @@ import prismadb from "@/lib/prismadb";
 import { DriversForm } from "./components/driver-form";
 
 interface SizePageProps {
-  params: Promise<{
-    taskId: string; // 'driverId' comes as a string from URL parameters
-  }>;
+  params: { taskId: string };
 }
 
 const SizePage = async ({ params }: SizePageProps) => {
-  // Convert driverId from string to number
-  const taskId =
-    (await params).taskId === "new" ? 0 : Number((await params).taskId);
+  const taskId = params.taskId === "new" ? 0 : Number(params.taskId);
 
-  // Query the database using the number
   const tasks = await prismadb.tasks.findUnique({
     where: {
-      id: taskId, // `id` is expected to be a number here
+      id: taskId,
     },
   });
 
