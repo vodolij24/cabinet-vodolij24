@@ -6,46 +6,18 @@ interface GraphData {
 }
 
 export const getGraphRevenue = async (): Promise<GraphData[]> => {
-  const paidOrders = await prismadb.daily_statistics.findMany({
-    where: {
-    },
-  });
-
+  const stats = await prismadb.daily_statistics.findMany();
   const monthlyRevenue: { [key: number]: number } = {};
 
-  // Grouping the orders by month and summing the revenue
-  for (const order of paidOrders) {
-    const month = order.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
-    let revenueForOrder = 0;
-/*
-    for (const item of order) {
-      revenueForOrder += item.product.price.toNumber();
-    }
-*/
-    // Adding the revenue for this order to the respective month
-    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + revenueForOrder;
+  for (const stat of stats) {
+    if (!stat.createdAt) continue;
+    const month = stat.createdAt.getMonth();
+    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + (stat.totalRevenue || 0);
   }
 
-  // Converting the grouped data into the format expected by the graph
-  const graphData: GraphData[] = [
-    { name: "СІЧ", total: 0 },
-    { name: "ЛЮТ", total: 0 },
-    { name: "БЕР", total: 0 },
-    { name: "КВІ", total: 0 },
-    { name: "ТРА", total: 0 },
-    { name: "ЧЕР", total: 0 },
-    { name: "ЛИП", total: 0 },
-    { name: "СЕР", total: 0 },
-    { name: "ВЕР", total: 0 },
-    { name: "ЖОВ", total: 0 },
-    { name: "ЛИС", total: 0 },
-    { name: "ГРУ", total: 0 },
-  ];
-
-  // Filling in the revenue data
-  for (const month in monthlyRevenue) {
-    graphData[parseInt(month)].total = monthlyRevenue[parseInt(month)];
-  }
-
-  return graphData;
+  // Convert to GraphData[]
+  return Object.entries(monthlyRevenue).map(([month, total]) => ({
+    name: new Date(2025, Number(month)).toLocaleString('default', { month: 'short' }),
+    total,
+  }));
 };
