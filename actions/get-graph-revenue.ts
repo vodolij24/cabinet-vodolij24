@@ -1,22 +1,3 @@
-await prismadb.workers.create({
-  data: {
-    chat_id: 123456789, // Replace with the actual chat_id value
-    name: "John Doe",
-    // Add other required fields here, e.g.:
-    // active: true
-  }
-});
-
-// import prisma from "@/lib/prisma"; // Removed because prismadb is used instead
-
-// await prismadb.workers.create({
-//   data: {
-//     name: "John Doe",
-//     // ...other fields...
-//     // active: true, // optional, will default to false if not set
-//   }
-// });
-
 import prismadb from "@/lib/prismadb";
 
 interface GraphData {
@@ -68,3 +49,4 @@ export const getGraphRevenue = async (): Promise<GraphData[]> => {
 
   return graphData;
 };
+
