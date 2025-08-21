@@ -9,7 +9,13 @@ import { getGraphRevenue } from "@/actions/get-graph-revenue";
 import { getStockCount } from "@/actions/get-stock-count";
 import { formatter } from "@/lib/utils";
 
-const DashboardPage = async ({ params }: { params: { storeId: string } }) => {
+interface DashboardPageProps {
+  params: {
+    storeId: string;
+  };
+}
+
+const DashboardPage = async ({ params }: DashboardPageProps) => {
   const totalRevenue = await getTotalRevenue();
   const graphRevenue = await getGraphRevenue();
   const salesCount = await getSalesCount();
