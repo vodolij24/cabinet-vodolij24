@@ -15,12 +15,11 @@ interface DashboardPageProps {
   };
 }
 */
-const DashboardPage = async ({ params }: { params: { storeId: string } }) => {
+const DashboardPage = async ({}: {}) => {
   const totalRevenue = await getTotalRevenue();
   const graphRevenue = await getGraphRevenue();
   const salesCount = await getSalesCount();
   const stockCount = await getStockCount();
-  const { storeId } = params;
   return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
