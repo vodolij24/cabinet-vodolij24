@@ -8,14 +8,14 @@ import { getSalesCount } from "@/actions/get-sales-count";
 import { getGraphRevenue } from "@/actions/get-graph-revenue";
 import { getStockCount } from "@/actions/get-stock-count";
 import { formatter } from "@/lib/utils";
-
+/*
 interface DashboardPageProps {
   params: {
     storeId: string;
   };
 }
-
-const DashboardPage = async ({ params }: DashboardPageProps) => {
+*/
+const DashboardPage = async ({ params }: { params: { storeId: string } }) => {
   const totalRevenue = await getTotalRevenue();
   const graphRevenue = await getGraphRevenue();
   const salesCount = await getSalesCount();
@@ -40,7 +40,9 @@ const DashboardPage = async ({ params }: DashboardPageProps) => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Завдань в роботі</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Завдань в роботі
+              </CardTitle>
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -49,7 +51,9 @@ const DashboardPage = async ({ params }: DashboardPageProps) => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Завдань виконано</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Завдань виконано
+              </CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
