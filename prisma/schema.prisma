@@ -153,7 +153,7 @@ model tasks {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model transactions {
-  id              Int      @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   user_id         Int?
   device          Int
   date            String   @db.VarChar(255)
@@ -168,7 +168,6 @@ model transactions {
   createdAt       DateTime @db.Timestamptz(6)
   updatedAt       DateTime @db.Timestamptz(6)
 
-  @@ignore
 }
 
 model user_achievements {
