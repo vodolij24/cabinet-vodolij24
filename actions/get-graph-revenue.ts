@@ -49,3 +49,4 @@ export const getGraphRevenue = async (): Promise<GraphData[]> => {
 
   return graphData;
 };
+

@@ -1,5 +1,4 @@
 import { CreditCard, DollarSign, Package } from "lucide-react";
-
 import { Separator } from "@/components/ui/separator";
 import { Overview } from "@/components/overview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,11 +13,9 @@ interface DashboardPageProps {
   params: {
     storeId: string;
   };
-};
+}
 
-const DashboardPage: React.FC<DashboardPageProps> = async ({ 
-  params
-}) => {
+const DashboardPage = async ({ params }: DashboardPageProps) => {
   const totalRevenue = await getTotalRevenue();
   const graphRevenue = await getGraphRevenue();
   const salesCount = await getSalesCount();
