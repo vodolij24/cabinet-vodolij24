@@ -15,7 +15,7 @@ interface DashboardPageProps {
   };
 }
 */
-const DashboardPage = async ({}: {}) => {
+const DashboardPage = async () => {
   const totalRevenue = await getTotalRevenue();
   const graphRevenue = await getGraphRevenue();
   const salesCount = await getSalesCount();

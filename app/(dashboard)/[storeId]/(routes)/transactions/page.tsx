@@ -5,7 +5,7 @@ import prismadb from "@/lib/prismadb";
 import { BotTrransactionsColumn } from "./components/columns";
 import { BotTransactions } from "./components/client";
 
-const SizesPage = async ({}: {}) => {
+const SizesPage = async () => {
   const daily_statistics = await prismadb.transactions.findMany({
     where: {},
     orderBy: {

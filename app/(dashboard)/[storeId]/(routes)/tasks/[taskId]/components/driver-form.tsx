@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import * as z from "zod"
-import axios from "axios"
-import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { toast } from "react-hot-toast"
-import { Trash } from "lucide-react"
-import { tasks, workers } from "@/lib/generated/prisma"
-import { useParams, useRouter } from "next/navigation"
+import * as z from "zod";
+import axios from "axios";
+import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { toast } from "react-hot-toast";
+import { Trash } from "lucide-react";
+import { tasks, workers } from "@/lib/generated/prisma";
+import { useParams, useRouter } from "next/navigation";
 
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -19,30 +19,36 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Separator } from "@/components/ui/separator"
-import { Heading } from "@/components/ui/heading"
-import { AlertModal } from "@/components/modals/alert-modal"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+} from "@/components/ui/form";
+import { Separator } from "@/components/ui/separator";
+import { Heading } from "@/components/ui/heading";
+import { AlertModal } from "@/components/modals/alert-modal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formSchema = z.object({
   title: z.string().min(1, "Заголовок завдання обовязковий"),
   deviceId: z.number().int().positive("DEVICE ID POSITIVE NUMBER"),
-  description: z.string() ,
-  priority: z.string() ,
+  description: z.string(),
+  priority: z.string(),
   workerId: z.string().min(1),
 });
 
-type TaskFormValues = z.infer<typeof formSchema>
+type TaskFormValues = z.infer<typeof formSchema>;
 
 interface TaskFormProps {
-    initialData: tasks | null;
-    workers: workers[]
-};
+  initialData: tasks | null;
+  workers: workers[];
+}
 
 export const DriversForm: React.FC<TaskFormProps> = ({
   initialData,
-  workers
+  workers,
 }) => {
   const params = useParams();
   const router = useRouter();
@@ -50,42 +56,50 @@ export const DriversForm: React.FC<TaskFormProps> = ({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const title = initialData ? 'Редагувати завдання' : 'Створити завдання';
-  const description = initialData ? 'Редагувати завдання.' : 'Створити завдання';
-  const toastMessage = initialData ? 'Завдання оновлено.' : 'Завдання створено.';
-  const action = initialData ? 'Зберегти зміни' : 'Створити';
+  const title = initialData ? "Редагувати завдання" : "Створити завдання";
+  const description = initialData
+    ? "Редагувати завдання."
+    : "Створити завдання";
+  const toastMessage = initialData
+    ? "Завдання оновлено."
+    : "Завдання створено.";
+  const action = initialData ? "Зберегти зміни" : "Створити";
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData ? {
-      title: initialData.title || '',
-      deviceId: Number(initialData.deviceId) || 0,
-      description: initialData.description || '',
-      priority: initialData.priority || 'medium',
-      workerId: String(initialData.workerId) || '',
-    } : {
-      title: '',
-      deviceId: 0,
-      description: '',
-      priority: 'medium',
-      workerId: ''
-    }
+    defaultValues: initialData
+      ? {
+          title: initialData.title || "",
+          deviceId: Number(initialData.deviceId) || 0,
+          description: initialData.description || "",
+          priority: initialData.priority || "medium",
+          workerId: String(initialData.workerId) || "",
+        }
+      : {
+          title: "",
+          deviceId: 0,
+          description: "",
+          priority: "medium",
+          workerId: "",
+        },
   });
-  
 
   const onSubmit = async (data: TaskFormValues) => {
     try {
       setLoading(true);
       if (initialData) {
-        await axios.patch(`/api/${params.storeId}/tasks/${initialData.id}`, data);
+        await axios.patch(
+          `/api/${params.storeId}/tasks/${initialData.id}`,
+          data
+        );
       } else {
         await axios.post(`/api/${params.storeId}/tasks`, data);
       }
       router.refresh();
       router.push(`/${params.storeId}/tasks`);
       toast.success(toastMessage);
-    } catch (error: any) {
-      toast.error('Трапилась помилка.');
+    } catch (error: unknown) {
+      toast.error("Трапилась помилка.");
     } finally {
       setLoading(false);
     }
@@ -97,19 +111,19 @@ export const DriversForm: React.FC<TaskFormProps> = ({
       await axios.delete(`/api/${params.storeId}/tasks/${initialData?.id}`);
       router.refresh();
       router.push(`/${params.storeId}/tasks`);
-      toast.success('Завдання видалено.');
-    } catch (error: any) {
-      toast.error('Make sure you removed all related data first.');
+      toast.success("Завдання видалено.");
+    } catch (error: unknown) {
+      toast.error("Make sure you removed all related data first.");
     } finally {
       setLoading(false);
       setOpen(false);
     }
-  }
+  };
 
   return (
     <>
-      <AlertModal 
-        isOpen={open} 
+      <AlertModal
+        isOpen={open}
         onClose={() => setOpen(false)}
         onConfirm={onDelete}
         loading={loading}
@@ -132,7 +146,10 @@ export const DriversForm: React.FC<TaskFormProps> = ({
       <Separator />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-8 w-full"
+        >
           <div className="md:grid md:grid-cols-2 gap-8">
             <FormField
               control={form.control}
@@ -141,7 +158,11 @@ export const DriversForm: React.FC<TaskFormProps> = ({
                 <FormItem>
                   <FormLabel>Завдання</FormLabel>
                   <FormControl>
-                    <Input disabled={loading} placeholder="Заголовок завдання" {...field} />
+                    <Input
+                      disabled={loading}
+                      placeholder="Заголовок завдання"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -155,7 +176,13 @@ export const DriversForm: React.FC<TaskFormProps> = ({
                 <FormItem>
                   <FormLabel>Апарат</FormLabel>
                   <FormControl>
-                    <Input type="number" disabled={loading} placeholder="Номер апарату" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                    <Input
+                      type="number"
+                      disabled={loading}
+                      placeholder="Номер апарату"
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -187,8 +214,10 @@ export const DriversForm: React.FC<TaskFormProps> = ({
                 <FormItem>
                   <FormLabel>Пріорітет</FormLabel>
                   <FormControl>
-                    <Input disabled={loading} placeholder="Пріорітет" {...field} 
-
+                    <Input
+                      disabled={loading}
+                      placeholder="Пріорітет"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -201,15 +230,25 @@ export const DriversForm: React.FC<TaskFormProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Виконавець</FormLabel>
-                  <Select disabled={loading} onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                  <Select
+                    disabled={loading}
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue defaultValue={field.value} placeholder="Обрати працівника" />
+                        <SelectValue
+                          defaultValue={field.value}
+                          placeholder="Обрати працівника"
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {workers.map((worker) => (
-                        <SelectItem key={worker.id} value={String(worker.id)}>{worker.name}</SelectItem>
+                        <SelectItem key={worker.id} value={String(worker.id)}>
+                          {worker.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -217,8 +256,6 @@ export const DriversForm: React.FC<TaskFormProps> = ({
                 </FormItem>
               )}
             />
-            
-
           </div>
 
           <Button disabled={loading} className="ml-auto" type="submit">
