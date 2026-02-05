@@ -6,10 +6,18 @@ import { BotTrransactionsColumn } from "./components/columns";
 import { BotTransactions } from "./components/client";
 
 const SizesPage = async () => {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 2);
+
+  // 2. Робимо запит до БД
   const daily_statistics = await prismadb.transactions.findMany({
-    where: {},
+    where: {
+      date: {
+        gte: thirtyDaysAgo, // Фільтруємо: дата >= 30 днів тому
+      },
+    },
     orderBy: {
-      id: "desc",
+      date: "desc", // Зазвичай статистику краще сортувати за датою, а не за id
     },
   });
 

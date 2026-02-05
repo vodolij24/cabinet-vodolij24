@@ -1,22 +1,21 @@
-"use client"
+"use client";
 
-import { ColumnDef } from '@tanstack/table-core';
+import { ColumnDef } from "@tanstack/table-core";
 
-import { CellAction } from "./cell-action"
+import { CellAction } from "./cell-action";
 
 export type BotTrransactionsColumn = {
   id: number;
-  date: string;
+  date: Date;
   cardId: number | null;
   device: number;
   waterRequested: number | null;
   waterFullfiled: number | null;
   cashAmount: number | null;
   personalCardAmount: number | null;
-  creditCardAmount: number | null; 
-  transactionChange: number | null 
-}
-
+  creditCardAmount: number | null;
+  transactionChange: number | null;
+};
 
 export const columns: ColumnDef<BotTrransactionsColumn>[] = [
   {
@@ -61,6 +60,6 @@ export const columns: ColumnDef<BotTrransactionsColumn>[] = [
   },
   {
     id: "actions",
-  /*  cell: ({ row }) => <CellAction data={row.original} />*/
+    /*  cell: ({ row }) => <CellAction data={row.original} />*/
   },
 ];

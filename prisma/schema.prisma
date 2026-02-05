@@ -33,8 +33,7 @@ model Apiusers {
   name         String?  @db.VarChar(255)
   birthdaydate String?  @db.VarChar(255)
   phone        String?  @db.VarChar(255)
-  email        String?  @db.VarChar(255)
-  cards        String?  @db.VarChar(255)
+  cardId       Int?     @unique(map: "unique_cardId")
   createdAt    DateTime @db.Timestamptz(6)
   updatedAt    DateTime @db.Timestamptz(6)
 }
@@ -45,19 +44,6 @@ model achievements {
   title       String? @db.VarChar(255)
   description String? @db.VarChar(255)
   icon        String? @db.VarChar(255)
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model bonuses {
-  id                Int      @default(autoincrement())
-  user_id           Int?
-  balance           Int?
-  transactionAmount Int?
-  transactionType   String?  @db.VarChar(255)
-  createdAt         DateTime @db.Timestamptz(6)
-  updatedAt         DateTime @db.Timestamptz(6)
-
-  @@ignore
 }
 
 model bot_transactions {
@@ -115,59 +101,41 @@ model daily_statistics {
 }
 
 model workers {
-  id        Int     @id @default(autoincrement())
-  chat_id    BigInt  @unique
-  name      String?
-  phone     String?
-  active    Boolean @default(true)
-  tasks     tasks[]  // Зв’язок один-до-багатьох
-}
-
-enum TaskStatus {
-  todo
-  in_progress
-  done
-}
-
-enum TaskPriority {
-  low
-  medium
-  high
+  id             Int      @id @default(autoincrement())
+  chat_id        BigInt   @unique
+  name           String?  @db.VarChar(255)
+  phone          String?  @db.VarChar(255)
+  active         Boolean?
+  dialoguestatus String?  @default("") @db.VarChar(255)
+  tasks          tasks[]
 }
 
 model tasks {
-  id          Int      @id @default(autoincrement())
-  title       String
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(255)
   description String?
-  status      String?
-  priority    String?
+  status      String?   @default("todo")
+  priority    String?   @default("medium")
   deviceId    Int?
-  completedAt DateTime?
+  completedAt DateTime? @db.Timestamptz(6)
+  createdAt   DateTime  @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
   workerId    Int?
   worker      workers?  @relation(fields: [workerId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
-
-
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model transactions {
-  id              Int      @id @default(autoincrement())
-  user_id         Int?
+  id              Int      @id(map: "transactions_pk") @default(autoincrement())
   device          Int
-  date            String   @db.VarChar(255)
+  date            DateTime @db.Timestamp(6)
   waterRequested  Float?   @db.Real
   waterFullfilled Float?   @db.Real
   cashPaymant     Float?   @db.Real
   cardPaymant     Float?   @db.Real
   onlinePaymant   Float?   @db.Real
   paymantChange   Float?   @db.Real
-  isAutorized     Boolean?
   cardId          Int?
-  createdAt       DateTime @db.Timestamptz(6)
-  updatedAt       DateTime @db.Timestamptz(6)
-
 }
 
 model user_achievements {
@@ -175,4 +143,165 @@ model user_achievements {
   user_id        BigInt?
   achievement_id Int?
   achieved_at    String? @db.VarChar(255)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model collections {
+  id            Int      @id @default(autoincrement())
+  date          DateTime @db.Timestamptz(6)
+  sum_banknotes Decimal  @default(0) @db.Decimal(10, 2)
+  sum_coins     Decimal  @default(0) @db.Decimal(10, 2)
+  total_sum     Decimal  @default(0) @db.Decimal(10, 2)
+  note          String?
+  machine       String
+  collector_id  String?  @db.VarChar(50)
+  collector_nik String?  @db.VarChar(100)
+  device_id     Int?
+  created_at    DateTime @db.Timestamptz(6)
+  updated_at    DateTime @db.Timestamptz(6)
+}
+
+model maintenance_tasks {
+  id                 Int                                      @id @default(autoincrement())
+  title              String                                   @db.VarChar(255)
+  description        String?
+  maintenance_type   enum_maintenance_tasks_maintenance_type? @default(preventive_maintenance)
+  status             enum_maintenance_tasks_status?           @default(pending)
+  priority           enum_maintenance_tasks_priority?         @default(medium)
+  machine_id         Int?
+  technician_id      Int?
+  location           String?                                  @db.VarChar(255)
+  estimated_duration String?                                  @db.VarChar(255)
+  parts_needed       String?
+  scheduled_date     DateTime?                                @db.Timestamptz(6)
+  completed_at       DateTime?                                @db.Timestamptz(6)
+  createdAt          DateTime                                 @db.Timestamptz(6)
+  updatedAt          DateTime                                 @db.Timestamptz(6)
+}
+
+model technicians {
+  id               Int                              @id @default(autoincrement())
+  name             String                           @db.VarChar(255)
+  phone            String?                          @db.VarChar(255)
+  email            String?                          @db.VarChar(255)
+  specialization   enum_technicians_specialization? @default(general)
+  status           enum_technicians_status?         @default(available)
+  current_location String?                          @db.VarChar(255)
+  createdAt        DateTime                         @db.Timestamptz(6)
+  updatedAt        DateTime                         @db.Timestamptz(6)
+}
+
+model vending_machines {
+  id                    Int                                         @id @default(autoincrement())
+  location              String                                      @db.VarChar(255)
+  status                enum_vending_machines_status?               @default(operational)
+  water_level           Int?
+  daily_sales           Int?                                        @default(0)
+  monthly_sales         Int?                                        @default(0)
+  last_maintenance      DateTime?                                   @db.Timestamptz(6)
+  next_maintenance      DateTime?                                   @db.Timestamptz(6)
+  alerts                String?
+  filter_life_remaining Int?
+  water_quality_status  enum_vending_machines_water_quality_status? @default(good)
+  createdAt             DateTime                                    @db.Timestamptz(6)
+  updatedAt             DateTime                                    @db.Timestamptz(6)
+}
+
+model water_quality_tests {
+  id             Int                                     @id @default(autoincrement())
+  machine_id     Int
+  test_date      DateTime                                @db.Timestamptz(6)
+  ph_level       Decimal?                                @db.Decimal(3, 2)
+  tds_level      Int?
+  chlorine_level Decimal?                                @db.Decimal(4, 3)
+  bacteria_count Int?
+  overall_rating enum_water_quality_tests_overall_rating
+  notes          String?
+  tested_by      Int?
+  createdAt      DateTime                                @db.Timestamptz(6)
+  updatedAt      DateTime                                @db.Timestamptz(6)
+}
+
+model workdatapoints {
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  workType  String   @db.VarChar(255)
+  deviceId  Int?
+  latitude  Float
+  longitude Float
+  address   String?  @db.VarChar(255)
+  createdAt DateTime @db.Timestamptz(6)
+  updatedAt DateTime @db.Timestamptz(6)
+}
+
+enum enum_maintenance_tasks_maintenance_type {
+  filter_replacement
+  system_cleaning
+  water_quality_test
+  equipment_repair
+  preventive_maintenance
+  emergency_repair
+}
+
+enum enum_maintenance_tasks_priority {
+  low
+  medium
+  high
+  critical
+}
+
+enum enum_maintenance_tasks_status {
+  pending
+  in_progress
+  completed
+  urgent
+  scheduled
+}
+
+enum enum_tasks_priority {
+  low
+  medium
+  high
+}
+
+enum enum_tasks_status {
+  todo
+  in_progress
+  done
+}
+
+enum enum_technicians_specialization {
+  general
+  filters
+  electronics
+  plumbing
+}
+
+enum enum_technicians_status {
+  available
+  busy
+  off_duty
+}
+
+enum enum_vending_machines_status {
+  operational
+  maintenance
+  out_of_service
+  low_water
+}
+
+enum enum_vending_machines_water_quality_status {
+  excellent
+  good
+  fair
+  poor
+  critical
+}
+
+enum enum_water_quality_tests_overall_rating {
+  excellent
+  good
+  fair
+  poor
+  critical
 }
