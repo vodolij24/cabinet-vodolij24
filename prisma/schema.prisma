@@ -118,7 +118,7 @@ model tasks {
   priority    String?   @default("medium")
   deviceId    Int?
   completedAt DateTime? @db.Timestamptz(6)
-  createdAt   DateTime  @db.Timestamptz(6)
+  createdAt   DateTime  @db.Timestamptz(6) @default(now())
   updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
   workerId    Int?
   worker      workers?  @relation(fields: [workerId], references: [id])
