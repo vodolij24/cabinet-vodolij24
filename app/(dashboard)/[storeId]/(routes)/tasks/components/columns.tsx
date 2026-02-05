@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { ColumnDef } from '@tanstack/table-core';
+import { ColumnDef } from "@tanstack/table-core";
 
-import { CellAction } from "./cell-action"
-import { TaskPriority, TaskStatus } from '@/lib/generated/prisma';
+import { CellAction } from "./cell-action";
+//import { TaskPriority, TaskStatus } from '@/lib/generated/prisma';
 
 export type TaskColumn = {
   id: number;
@@ -14,9 +14,9 @@ export type TaskColumn = {
   priority: string | null;
   completedAt: Date | null;
   workerId: string | null | undefined;
-  createdAt: string | null ;  
-  updatedAt: string;  
-}
+  createdAt: string | null;
+  updatedAt: string;
+};
 
 export const columns: ColumnDef<TaskColumn>[] = [
   {
@@ -61,6 +61,6 @@ export const columns: ColumnDef<TaskColumn>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <CellAction data={row.original} />
+    cell: ({ row }) => <CellAction data={row.original} />,
   },
 ];
