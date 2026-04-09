@@ -6,7 +6,7 @@ import { CellAction } from "./cell-action";
 
 export type BotTrransactionsColumn = {
   id: number;
-  date: Date;
+  date: string;
   cardId: number | null;
   device: number;
   waterRequested: number | null;
