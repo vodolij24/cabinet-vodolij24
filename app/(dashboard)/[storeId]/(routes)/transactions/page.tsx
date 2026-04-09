@@ -25,7 +25,7 @@ const SizesPage = async () => {
     daily_statistics.map((item) => ({
       id: item.id,
       date: item.date.toLocaleString("uk-UA", {
-        timeZone: "Europe/Kyiv",
+        timeZone: "UTC",
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
