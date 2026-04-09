@@ -24,7 +24,14 @@ const SizesPage = async () => {
   const formattedBotTransactions: BotTrransactionsColumn[] =
     daily_statistics.map((item) => ({
       id: item.id,
-      date: item.date,
+      date: item.date.toLocaleString("uk-UA", {
+        timeZone: "Europe/Kyiv",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       cardId: item.cardId,
       device: item.device,
       waterRequested: item.waterRequested,
