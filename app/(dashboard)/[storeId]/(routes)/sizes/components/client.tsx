@@ -14,20 +14,20 @@ interface SizesClientProps {
   data: DailyStatColumn[];
 }
 
-export const SizesClient: React.FC<SizesClientProps> = ({
-  data
-}) => {
+export const SizesClient: React.FC<SizesClientProps> = ({ data }) => {
   const params = useParams();
   const router = useRouter();
 
   return (
     <>
       <div className="flex items-center justify-between">
-        <Heading title={`Щоденна статистика (${data.length})`} description="Статистика набору води через бота" />
-      
+        <Heading
+          title={`Щоденна статистика (${data.length})`}
+          description="Статистика набору води через бота"
+        />
       </div>
       <Separator />
-      <DataTable searchKey="date" columns={columns} data={data} />
+      <DataTable searchKey="topDeviceId" columns={columns} data={data} />
     </>
   );
 };

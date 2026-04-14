@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { ColumnDef } from '@tanstack/table-core';
+import { ColumnDef } from "@tanstack/table-core";
 
-import { CellAction } from "./cell-action"
+import { CellAction } from "./cell-action";
 
 export type DailyStatColumn = {
   id: number;
@@ -13,8 +13,8 @@ export type DailyStatColumn = {
   topUserId: number | null;
   topUserVolume: number | null;
   topDeviceId: number | null;
-  topDeviceTransactions: number | null;  
-}
+  topDeviceTransactions: number | null;
+};
 
 export const columns: ColumnDef<DailyStatColumn>[] = [
   {
@@ -44,6 +44,10 @@ export const columns: ColumnDef<DailyStatColumn>[] = [
   {
     accessorKey: "topDeviceId",
     header: "Топ Апарат",
+    filterFn: "includesString",
+    cell: ({ row }) => {
+      return row.getValue("cardId")?.toString() || "-";
+    },
   },
   {
     accessorKey: "topDeviceTransactions",
@@ -51,6 +55,6 @@ export const columns: ColumnDef<DailyStatColumn>[] = [
   },
   {
     id: "actions",
-  /*  cell: ({ row }) => <CellAction data={row.original} />*/
+    /*  cell: ({ row }) => <CellAction data={row.original} />*/
   },
 ];
