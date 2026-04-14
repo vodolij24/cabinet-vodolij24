@@ -24,7 +24,7 @@ export const BotTransactions: React.FC<SizesClientProps> = ({ data }) => {
       <div className="flex items-center justify-between">
         <Heading
           title={`Транзакції (${data.length})`}
-          description="Транзакції через бота"
+          description="Транзакції за останні 30 днів"
         />
       </div>
       <Separator />
