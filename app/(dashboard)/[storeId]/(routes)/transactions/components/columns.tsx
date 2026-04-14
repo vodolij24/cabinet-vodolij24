@@ -29,6 +29,10 @@ export const columns: ColumnDef<BotTrransactionsColumn>[] = [
   {
     accessorKey: "cardId",
     header: "Карта",
+    filterFn: "includesString",
+    cell: ({ row }) => {
+      return row.getValue("cardId")?.toString() || "-";
+    },
   },
   {
     accessorKey: "device",
