@@ -46,7 +46,7 @@ export const columns: ColumnDef<DailyStatColumn>[] = [
     header: "Топ Апарат",
     filterFn: "includesString",
     cell: ({ row }) => {
-      return row.getValue("cardId")?.toString() || "-";
+      return row.getValue("topDeviceId")?.toString() || "-";
     },
   },
   {
