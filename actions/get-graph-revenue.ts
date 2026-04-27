@@ -7,8 +7,7 @@ interface GraphData {
 
 export const getGraphRevenue = async (): Promise<GraphData[]> => {
   const paidOrders = await prismadb.daily_statistics.findMany({
-    where: {
-    },
+    where: {},
   });
 
   const monthlyRevenue: { [key: number]: number } = {};
@@ -17,7 +16,7 @@ export const getGraphRevenue = async (): Promise<GraphData[]> => {
   for (const order of paidOrders) {
     const month = order.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
     let revenueForOrder = 0;
-/*
+    /*
     for (const item of order) {
       revenueForOrder += item.product.price.toNumber();
     }
@@ -28,10 +27,10 @@ export const getGraphRevenue = async (): Promise<GraphData[]> => {
 
   // Converting the grouped data into the format expected by the graph
   const graphData: GraphData[] = [
-    { name: "СІЧ", total: 0 },
-    { name: "ЛЮТ", total: 0 },
-    { name: "БЕР", total: 0 },
-    { name: "КВІ", total: 0 },
+    { name: "СІЧ", total: 50000 },
+    { name: "ЛЮТ", total: 50000 },
+    { name: "БЕР", total: 50000 },
+    { name: "КВІ", total: 50000 },
     { name: "ТРА", total: 0 },
     { name: "ЧЕР", total: 0 },
     { name: "ЛИП", total: 0 },
@@ -49,4 +48,3 @@ export const getGraphRevenue = async (): Promise<GraphData[]> => {
 
   return graphData;
 };
-
