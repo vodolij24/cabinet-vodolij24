@@ -18,7 +18,6 @@ export const getGraphRevenue = async (): Promise<GraphData[]> => {
   // 2. Групуємо дохід по місяцях
   for (const stat of statistics) {
     const month = stat.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
-    let revenueForOrder = 0;
 
     const revenue = Math.round(stat.totalRevenue) || 0;
 

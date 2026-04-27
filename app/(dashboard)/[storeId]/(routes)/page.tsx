@@ -62,7 +62,7 @@ const DashboardPage = async () => {
         </div>
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Виконано завдань по місяцям</CardTitle>
+            <CardTitle>Отримано коштів. Готівка + онлайн</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
             <Overview data={graphRevenue} />
