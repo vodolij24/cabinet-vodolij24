@@ -6,31 +6,32 @@ interface GraphData {
 }
 
 export const getGraphRevenue = async (): Promise<GraphData[]> => {
-  const paidOrders = await prismadb.daily_statistics.findMany({
-    where: {},
+  const statistics = await prismadb.daily_statistics.findMany({
+    select: {
+      totalRevenue: true,
+      createdAt: true,
+    },
   });
 
   const monthlyRevenue: { [key: number]: number } = {};
 
-  // Grouping the orders by month and summing the revenue
-  for (const order of paidOrders) {
-    const month = order.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
+  // 2. Групуємо дохід по місяцях
+  for (const stat of statistics) {
+    const month = stat.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
     let revenueForOrder = 0;
-    /*
-    for (const item of order) {
-      revenueForOrder += item.product.price.toNumber();
-    }
-*/
+
+    const revenue = Math.round(stat.totalRevenue) || 0;
+
     // Adding the revenue for this order to the respective month
-    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + revenueForOrder;
+    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + revenue;
   }
 
   // Converting the grouped data into the format expected by the graph
   const graphData: GraphData[] = [
-    { name: "СІЧ", total: 50000 },
-    { name: "ЛЮТ", total: 50000 },
-    { name: "БЕР", total: 50000 },
-    { name: "КВІ", total: 50000 },
+    { name: "СІЧ", total: 0 },
+    { name: "ЛЮТ", total: 0 },
+    { name: "БЕР", total: 0 },
+    { name: "КВІ", total: 0 },
     { name: "ТРА", total: 0 },
     { name: "ЧЕР", total: 0 },
     { name: "ЛИП", total: 0 },
