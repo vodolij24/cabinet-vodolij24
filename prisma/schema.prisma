@@ -34,8 +34,8 @@ model Apiusers {
   birthdaydate String?  @db.VarChar(255)
   phone        String?  @db.VarChar(255)
   cardId       Int?     @unique(map: "unique_cardId")
-  createdAt    DateTime @db.Timestamptz(6)
-  updatedAt    DateTime @db.Timestamptz(6)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
 }
 
 model achievements {
@@ -76,8 +76,8 @@ model cards {
   LitersPerDay  Int?
   Discount      Int?
   status        String?  @db.VarChar(255)
-  createdAt     DateTime @db.Timestamptz(6)
-  updatedAt     DateTime @db.Timestamptz(6)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
 }
 
 model daily_statistics {
@@ -96,8 +96,8 @@ model daily_statistics {
   cardRevenue           Float
   onlineRevenue         Float
   failedTransactions    Int
-  createdAt             DateTime @db.Timestamptz(6)
-  updatedAt             DateTime @db.Timestamptz(6)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime
 }
 
 model workers {
@@ -118,8 +118,8 @@ model tasks {
   priority    String?   @default("medium")
   deviceId    Int?
   completedAt DateTime? @db.Timestamptz(6)
-  createdAt   DateTime  @db.Timestamptz(6) @default(now())
-  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   workerId    Int?
   worker      workers?  @relation(fields: [workerId], references: [id])
 }
@@ -175,8 +175,8 @@ model maintenance_tasks {
   parts_needed       String?
   scheduled_date     DateTime?                                @db.Timestamptz(6)
   completed_at       DateTime?                                @db.Timestamptz(6)
-  createdAt          DateTime                                 @db.Timestamptz(6)
-  updatedAt          DateTime                                 @db.Timestamptz(6)
+  createdAt          DateTime                                 @default(now())
+  updatedAt          DateTime
 }
 
 model technicians {
@@ -187,8 +187,8 @@ model technicians {
   specialization   enum_technicians_specialization? @default(general)
   status           enum_technicians_status?         @default(available)
   current_location String?                          @db.VarChar(255)
-  createdAt        DateTime                         @db.Timestamptz(6)
-  updatedAt        DateTime                         @db.Timestamptz(6)
+  createdAt        DateTime                         @default(now())
+  updatedAt        DateTime
 }
 
 model vending_machines {
@@ -203,8 +203,8 @@ model vending_machines {
   alerts                String?
   filter_life_remaining Int?
   water_quality_status  enum_vending_machines_water_quality_status? @default(good)
-  createdAt             DateTime                                    @db.Timestamptz(6)
-  updatedAt             DateTime                                    @db.Timestamptz(6)
+  createdAt             DateTime                                    @default(now())
+  updatedAt             DateTime
 }
 
 model water_quality_tests {
@@ -218,8 +218,8 @@ model water_quality_tests {
   overall_rating enum_water_quality_tests_overall_rating
   notes          String?
   tested_by      Int?
-  createdAt      DateTime                                @db.Timestamptz(6)
-  updatedAt      DateTime                                @db.Timestamptz(6)
+  createdAt      DateTime                                @default(now())
+  updatedAt      DateTime
 }
 
 model workdatapoints {
@@ -232,6 +232,18 @@ model workdatapoints {
   address   String?  @db.VarChar(255)
   createdAt DateTime @db.Timestamptz(6)
   updatedAt DateTime @db.Timestamptz(6)
+}
+
+model BotAnalyticsDaylySnapshot {
+  id            Int      @id @default(autoincrement())
+  createdAt     DateTime @default(now())
+  inactiveUsers Int?
+  newUsers      Int?
+  totalBalance  Decimal  @db.Decimal(10, 2)
+  dau           Int?
+  totalWater    Int?
+
+  @@index([createdAt])
 }
 
 enum enum_maintenance_tasks_maintenance_type {
