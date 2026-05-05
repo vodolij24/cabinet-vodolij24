@@ -3,15 +3,6 @@
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 
-const chartData = [
-  { month: "January", desktop: 0, mobile: 0 },
-  { month: "February", desktop: 0, mobile: 0 },
-  { month: "March", desktop: 0, mobile: 0 },
-  { month: "April", desktop: 0, mobile: 0 },
-  { month: "May", desktop: 0, mobile: 0 },
-  { month: "June", desktop: 0, mobile: 0 },
-];
-
 const chartConfig = {
   desktop: {
     label: "Desktop",
@@ -50,7 +41,7 @@ export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
     </ResponsiveContainer>
     */
     <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-      <BarChart accessibilityLayer data={chartData}>
+      <BarChart accessibilityLayer data={data}>
         <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
         <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
       </BarChart>
