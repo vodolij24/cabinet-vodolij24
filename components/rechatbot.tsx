@@ -43,8 +43,8 @@ export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
     */
     <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
       <BarChart accessibilityLayer data={data}>
-        <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
-        <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
+        <Bar dataKey="total" fill="var(--color-desktop)" radius={4} />
+        <Bar dataKey="bot" fill="var(--color-mobile)" radius={4} />
       </BarChart>
     </ChartContainer>
   );
