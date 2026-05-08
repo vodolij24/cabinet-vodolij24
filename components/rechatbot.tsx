@@ -1,7 +1,14 @@
 "use client";
 
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart";
 
 const chartConfig = {
   desktop: {
@@ -19,14 +26,14 @@ interface OverviewProps {
 }
 
 export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
-  console.log(data);
   return (
     <ChartContainer
       config={chartConfig}
-      className="min-h-[200px] w-full h-[350px]" // Виправив height на h-[350px]
+      className="min-h-[200px] w-full h-[350px]"
     >
       <BarChart accessibilityLayer data={data}>
-        {/* Додаємо вісь X (Місяці) */}
+        <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+
         <XAxis
           dataKey="name"
           stroke="#888888"
@@ -34,7 +41,7 @@ export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
           tickLine={false}
           axisLine={false}
         />
-        {/* Додаємо вісь Y (Гривні) */}
+
         <YAxis
           stroke="#888888"
           fontSize={12}
@@ -43,9 +50,27 @@ export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
           tickFormatter={(value) => `₴${value}`}
         />
 
-        {/* Відображаємо обидва стовпці поруч */}
-        <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="bot" fill="var(--color-bot)" radius={[4, 4, 0, 0]} />
+        {/* Налаштування підказки при наведенні */}
+        <ChartTooltip
+          cursor={{ fill: "rgba(0, 0, 0, 0.05)" }}
+          content={<ChartTooltipContent hideLabel />}
+        />
+
+        {/* Додавання легенди під графіком */}
+        <ChartLegend content={<ChartLegendContent />} />
+
+        <Bar
+          dataKey="total"
+          fill="var(--color-total)"
+          name="Загальний дохід"
+          radius={[4, 4, 0, 0]}
+        />
+        <Bar
+          dataKey="bot"
+          fill="var(--color-bot)"
+          name="Дохід через бота"
+          radius={[4, 4, 0, 0]}
+        />
       </BarChart>
     </ChartContainer>
   );
