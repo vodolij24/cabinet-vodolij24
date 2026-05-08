@@ -5,11 +5,11 @@ import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 
 const chartConfig = {
   desktop: {
-    label: "Desktop",
+    label: "Overall",
     color: "#2563eb",
   },
   mobile: {
-    label: "Mobile",
+    label: "BotOnly",
     color: "#60a5fa",
   },
 } satisfies ChartConfig;
@@ -21,8 +21,12 @@ interface OverviewProps {
 export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
   console.log(data);
   return (
-    /*<ResponsiveContainer width="100%" height={350}>
-      <BarChart data={data}>
+    <ChartContainer
+      config={chartConfig}
+      className="min-h-[200px] w-full h-[350px]" // Виправив height на h-[350px]
+    >
+      <BarChart accessibilityLayer data={data}>
+        {/* Додаємо вісь X (Місяці) */}
         <XAxis
           dataKey="name"
           stroke="#888888"
@@ -30,6 +34,7 @@ export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
           tickLine={false}
           axisLine={false}
         />
+        {/* Додаємо вісь Y (Гривні) */}
         <YAxis
           stroke="#888888"
           fontSize={12}
@@ -37,14 +42,10 @@ export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
           axisLine={false}
           tickFormatter={(value) => `₴${value}`}
         />
-        <Bar dataKey="total" fill="#3498db" radius={[4, 4, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-    */
-    <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-      <BarChart accessibilityLayer data={data}>
-        <Bar dataKey="total" fill="var(--color-desktop)" radius={4} />
-        <Bar dataKey="bot" fill="var(--color-mobile)" radius={4} />
+
+        {/* Відображаємо обидва стовпці поруч */}
+        <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="bot" fill="var(--color-bot)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ChartContainer>
   );

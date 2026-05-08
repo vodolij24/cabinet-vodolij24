@@ -65,7 +65,7 @@ export const getBotVsTotalGraphRevenue = async (): Promise<GraphData[]> => {
   }
 
   for (const month in monthlyBotWater) {
-    graphData[parseInt(month)].bot = monthlyWater[parseInt(month)];
+    graphData[parseInt(month)].bot = monthlyBotWater[parseInt(month)];
   }
 
   return graphData;
