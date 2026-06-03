@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link"
+import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 export function MainNav({
   className,
@@ -15,40 +15,30 @@ export function MainNav({
   const routes = [
     {
       href: `/${params.storeId}`,
-      label: 'Аналітика',
+      label: "Аналітика",
       active: pathname === `/${params.storeId}`,
     },
     {
       href: `/${params.storeId}/categories`,
-      label: 'Ачівки',
-      active: pathname === `/${params.storeId}/categories`,
+      label: "Розсилки",
+      active: pathname === `/${params.storeId}/mailing`,
     },
     {
       href: `/${params.storeId}/sizes`,
-      label: 'Статистика',
+      label: "Статистика",
       active: pathname === `/${params.storeId}/sizes`,
     },
     {
-      href: `/${params.storeId}/colors`,
-      label: 'Користувачі',
-      active: pathname === `/${params.storeId}/colors`,
-    },
-    {
       href: `/${params.storeId}/transactions`,
-      label: 'Транзакції',
+      label: "Транзакції",
       active: pathname === `/${params.storeId}/transactions`,
     },
     {
-      href: `/${params.storeId}/orders`,
-      label: 'Картки',
-      active: pathname === `/${params.storeId}/orders`,
-    },
-    {
       href: `/${params.storeId}/tasks`,
-      label: 'Задачі',
+      label: "Задачі",
       active: pathname === `/${params.storeId}/tasks`,
     },
-  ]
+  ];
 
   return (
     <nav
@@ -60,13 +50,15 @@ export function MainNav({
           key={route.href}
           href={route.href}
           className={cn(
-            'text-sm font-medium transition-colors hover:text-primary',
-            route.active ? 'text-black dark:text-white' : 'text-muted-foreground'
+            "text-sm font-medium transition-colors hover:text-primary",
+            route.active
+              ? "text-black dark:text-white"
+              : "text-muted-foreground"
           )}
         >
           {route.label}
-      </Link>
+        </Link>
       ))}
     </nav>
-  )
-};
+  );
+}
