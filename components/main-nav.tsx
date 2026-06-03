@@ -19,7 +19,7 @@ export function MainNav({
       active: pathname === `/${params.storeId}`,
     },
     {
-      href: `/${params.storeId}/categories`,
+      href: `/${params.storeId}/mailing`,
       label: "Розсилки",
       active: pathname === `/${params.storeId}/mailing`,
     },
