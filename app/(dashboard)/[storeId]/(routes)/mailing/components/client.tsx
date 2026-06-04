@@ -117,9 +117,6 @@ export const MailingClient = ({}) => {
           title="Розсилки"
           description="Редагування і відслідковування розсилок"
         />
-        <Button onClick={() => router.push(`/${params.storeId}/mailings/new`)}>
-          <Plus className="mr-2 h-4 w-4" /> Додати шаблон
-        </Button>
       </div>
 
       <Separator className="mb-6" />
