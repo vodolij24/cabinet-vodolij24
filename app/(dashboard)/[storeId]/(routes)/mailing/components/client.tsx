@@ -25,18 +25,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "react-hot-toast";
+import { useState } from "react";
+import axios from "axios";
+
+interface MailingFormValues {
+  targetGroup: "all" | "active_only" | "test";
+  messageText: string;
+}
 
 // Схема валідації форми
 const formSchema = z.object({
-  targetGroup: z.string({
-    required_error: "Будь ласка, виберіть принцип розсилки",
+  // Дозволяємо пустий рядок для дефолтного стану, але вимагаємо один з варіантів при відправці
+  targetGroup: z.enum(["all", "active_only", "test"], {
+    required_error: "Будь ласка, оберіть цільову аудиторію",
   }),
-  messageText: z.string().min(10, {
-    message: "Текст розсилки має бути не менше 10 символів",
+  messageText: z.string().min(5, {
+    message: "Повідомлення має містити мінімум 5 символів",
   }),
 });
 
-type MailingFormValues = z.infer<typeof formSchema>;
+//type MailingFormValues = z.infer<typeof formSchema>;
 
 export const MailingClient = ({}) => {
   const params = useParams();
@@ -46,26 +55,60 @@ export const MailingClient = ({}) => {
   const form = useForm<MailingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      targetGroup: "",
+      targetGroup: "test",
       messageText: "",
     },
   });
 
-  const isLoading = form.formState.isSubmitting;
+  const [isLoading, setIsLoading] = useState(false);
+
+  //const isLoading = form.formState.isSubmitting;
 
   // Обробник відправки форми
   const onSubmit = async (data: MailingFormValues) => {
     try {
-      console.log("Дані для розсилки:", data);
-      // Тут буде твій запит до API, наприклад:
-      // await axios.post(`/api/${params.storeId}/mailings`, data);
+      setIsLoading(true);
 
-      form.reset();
-    } catch (error) {
-      console.error("Помилка при відправці розсилки", error);
+      // 1. Динамічні повідомлення залежно від обраного типу аудиторії
+      const messages: Record<MailingFormValues["targetGroup"], string> = {
+        test: "Тестову розсилку успішно відправлено адміністраторам!",
+        all: "Запит на масову розсилку для ВСІХ користувачів надіслано.",
+        active_only:
+          "Розсилку для користувачів, неактивних за останній місяць, запущено.",
+      };
+
+      // 2. Якщо для якогось типу потрібен інший ендпоінт, це можна легко налаштувати тут:
+      let url = `/api/${params.storeId}/mailing`;
+
+      // Приклад, якщо тестові розсилки йдуть на окремий швидкий маршрут:
+      // if (data.targetGroup === "test") {
+      //   url = `/api/${params.storeId}/mailings/test`;
+      // }
+
+      // 3. Відправка запиту на сервер
+      const response = await axios.post(url, data);
+
+      // 4. Показ успішного сповіщення
+      toast.success(
+        messages[data.targetGroup] || "Розсилку успішно надіслано!"
+      );
+
+      // 5. Опціонально: перенаправлення користувача на сторінку історії розсилок
+      // router.push(`/${params.storeId}/mailings`);
+      // router.refresh(); // Оновити серверні компоненти, щоб побачити нову розсилку в списку
+    } catch (error: any) {
+      console.error("Mailing error:", error);
+
+      // Гнучка обробка помилок сервера
+      const errorMessage =
+        error.response?.data?.message ||
+        "Не вдалося запустити розсилку. Перевірте з'єднання або зверніться до підтримки.";
+
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
-
   return (
     <>
       {/* Верхня панель */}
@@ -105,10 +148,7 @@ export const MailingClient = ({}) => {
                     <SelectContent>
                       <SelectItem value="all">Усім користувачам</SelectItem>
                       <SelectItem value="active_only">
-                        Тільки активним за останній тиждень
-                      </SelectItem>
-                      <SelectItem value="with_orders">
-                        Користувачам із замовленнями
+                        Тільки неактивним за останній місяць
                       </SelectItem>
                       <SelectItem value="test">
                         Тестова розсилка (адміністратори)
