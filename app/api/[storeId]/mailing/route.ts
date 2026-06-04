@@ -3,12 +3,16 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function POST(
-  req: Request,
-  { params }: { params: { storeId: string } }
-) {
+interface RouteParams {
+  params: Promise<{
+    storeId: string;
+  }>;
+}
+
+export async function POST(req: Request, { params }: RouteParams) {
   try {
     // 1. Отримуємо дані з тіла запиту
+    const { storeId } = await params;
     const body = await req.json();
     const { targetGroup, messageText } = body;
 
