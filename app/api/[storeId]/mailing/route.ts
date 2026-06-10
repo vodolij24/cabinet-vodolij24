@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prismadb from "@/lib/prismadb";
 
 interface RouteParams {
   params: Promise<{
@@ -27,7 +25,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     // 2. Обробка тестової розсилки для адміністраторів
     if (targetGroup === "test") {
       // Шукаємо користувачів з id 1 та 2 в таблиці Apiusers
-      const admins = await prisma.apiusers.findMany({
+      const admins = await prismadb.apiusers.findMany({
         where: {
           id: {
             in: [1, 2],
