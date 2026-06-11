@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
+import { sendMainCustomerNotification } from "@/lib/telegram";
+import { text } from "stream/consumers";
 
 interface RouteParams {
   params: Promise<{
@@ -58,6 +60,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     // 3. Тимчасовий затичок (Placeholder) для відправки в Telegram
     // Тут ми далі підключимо Telegraf або звичайний fetch/axios до Telegram API
     console.log(`Надсилаємо повідомлення: "${messageText}" для ID:`, chatIds);
+
+    sendMainCustomerNotification(chatIds, messageText);
 
     // Повертаємо успішну відповідь на фронтенд
     return NextResponse.json({
