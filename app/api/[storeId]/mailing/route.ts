@@ -48,6 +48,12 @@ export async function POST(req: Request, { params }: RouteParams) {
           status: 404,
         });
       }
+
+      // 3. Тимчасовий затичок (Placeholder) для відправки в Telegram
+      // Тут ми далі підключимо Telegraf або звичайний fetch/axios до Telegram API
+      console.log(`Надсилаємо повідомлення: "${messageText}" для ID:`, chatIds);
+
+      sendMainCustomerNotification(chatIds, messageText);
     }
 
     // Тут в майбутньому будуть else if для "all" та "active_only"
@@ -56,12 +62,6 @@ export async function POST(req: Request, { params }: RouteParams) {
         status: 500,
       });
     }
-
-    // 3. Тимчасовий затичок (Placeholder) для відправки в Telegram
-    // Тут ми далі підключимо Telegraf або звичайний fetch/axios до Telegram API
-    console.log(`Надсилаємо повідомлення: "${messageText}" для ID:`, chatIds);
-
-    sendMainCustomerNotification(chatIds, messageText);
 
     // Повертаємо успішну відповідь на фронтенд
     return NextResponse.json({
