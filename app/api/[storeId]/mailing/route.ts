@@ -39,7 +39,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       });
 
       // Збираємо чисті chat_id в один масив (відфільтровуємо null/undefined, якщо вони є)
-      chatIds = admins.map((admin: any) => admin.chat_id);
+      const chatIds = admins.map((admin: any) => admin.chat_id.toString());
 
       console.log("Знайдені chat_id адмінів:", chatIds);
 
