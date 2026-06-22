@@ -317,3 +317,14 @@ enum enum_water_quality_tests_overall_rating {
   poor
   critical
 }
+
+model MailingFilter {
+  id          Int      @id @default(autoincrement())
+
+  name        String   // Назва фільтра/кампанії (наприклад, "Неактивні з PS5")
+  title       String
+  
+  // Тут зберігатимемо всі умови: { favoriteDevice: "PS5", updatedAt_less_than: "2026-05-01" }
+  conditions  String  
+  
+}

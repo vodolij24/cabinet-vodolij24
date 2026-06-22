@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -29,77 +29,92 @@ import { toast } from "react-hot-toast";
 import { useState } from "react";
 import axios from "axios";
 
+// Описуємо інтерфейс для фільтра, який приходить з Prisma
+interface MailingFilterItem {
+  id: number;
+  name: string;
+  title: string;
+  conditions: string;
+}
+
 interface MailingFormValues {
-  targetGroup: "all" | "active_only" | "test";
+  targetGroup: string; // Тепер тут буде ID фільтра у вигляді рядка
   messageText: string;
 }
 
 // Схема валідації форми
 const formSchema = z.object({
-  // Дозволяємо пустий рядок для дефолтного стану, але вимагаємо один з варіантів при відправці
-  targetGroup: z.enum(["all", "active_only", "test"], {
-    required_error: "Будь ласка, оберіть цільову аудиторію",
-  }),
+  targetGroup: z
+    .string({
+      required_error: "Будь ласка, оберіть цільову аудиторію",
+    })
+    .min(1, "Будь ласка, оберіть цільову аудиторію"),
   messageText: z.string().min(5, {
     message: "Повідомлення має містити мінімум 5 символів",
   }),
 });
 
-//type MailingFormValues = z.infer<typeof formSchema>;
+interface MailingClientProps {
+  initialFilters: MailingFilterItem[]; // Передаємо масив фільтрів з сервера
+}
 
-export const MailingClient = ({}) => {
+export const MailingClient = ({ initialFilters = [] }: MailingClientProps) => {
   const params = useParams();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Ініціалізація форми за допомогою react-hook-form
+  // Ініціалізація форми
   const form = useForm<MailingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      targetGroup: "test",
+      targetGroup: "", // Залишаємо пустим за замовчуванням, щоб змусити обрати
       messageText: "",
     },
   });
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  //const isLoading = form.formState.isSubmitting;
 
   // Обробник відправки форми
   const onSubmit = async (data: MailingFormValues) => {
     try {
       setIsLoading(true);
 
-      // 1. Динамічні повідомлення залежно від обраного типу аудиторії
-      const messages: Record<MailingFormValues["targetGroup"], string> = {
-        test: "Тестову розсилку успішно відправлено адміністраторам!",
-        all: "Запит на масову розсилку для ВСІХ користувачів надіслано.",
-        active_only:
-          "Розсилку для користувачів, неактивних за останній місяць, запущено.",
-      };
-
-      // 2. Якщо для якогось типу потрібен інший ендпоінт, це можна легко налаштувати тут:
-      let url = `/api/${params.storeId}/mailing`;
-
-      // Приклад, якщо тестові розсилки йдуть на окремий швидкий маршрут:
-      // if (data.targetGroup === "test") {
-      //   url = `/api/${params.storeId}/mailings/test`;
-      // }
-
-      // 3. Відправка запиту на сервер
-      const response = await axios.post(url, data);
-
-      // 4. Показ успішного сповіщення
-      toast.success(
-        messages[data.targetGroup] || "Розсилку успішно надіслано!"
+      const selectedFilter = initialFilters.find(
+        (f) => f.id.toString() === data.targetGroup
       );
 
-      // 5. Опціонально: перенаправлення користувача на сторінку історії розсилок
-      // router.push(`/${params.storeId}/mailings`);
-      // router.refresh(); // Оновити серверні компоненти, щоб побачити нову розсилку в списку
+      const filterName = selectedFilter
+        ? `"${selectedFilter.title}"`
+        : "обраного фільтра";
+
+      let url = `/api/${params.storeId}/mailing`;
+
+      // Відправка запиту на сервер
+      // ПРИМІТКА: додайте передачу testMode: true/false, якщо виведете чекбокс на інтерфейс
+      const response = await axios.post(url, {
+        filterId: parseInt(data.targetGroup, 10),
+        messageText: data.messageText,
+        testMode: true, // міняйте на значення з форми, коли вимкнете режим тесту
+      });
+
+      // Витягуємо кількість отримувачів, яку нарахував бекенд
+      const count = response.data?.recipientsCount ?? 0;
+      const isTest = response.data?.testMode;
+
+      // Виводимо гарне інформативне повідомлення в тостер
+      if (isTest) {
+        toast.success(
+          `Тест! Цільова група ${filterName} зібрала користувачів: ${count} шт. (Розсилка не виконувалась)`,
+          {
+            duration: 5000, // тримаємо тостер трохи довше, щоб встигнути прочитати цифру
+          }
+        );
+      } else {
+        toast.success(`Розсилку успішно активовано для ${count} користувачів!`);
+      }
+
+      form.reset({ targetGroup: "", messageText: "" });
+      router.refresh();
     } catch (error: any) {
       console.error("Mailing error:", error);
-
-      // Гнучка обробка помилок сервера
       const errorMessage =
         error.response?.data?.message ||
         "Не вдалося запустити розсилку. Перевірте з'єднання або зверніться до підтримки.";
@@ -133,23 +148,33 @@ export const MailingClient = ({}) => {
                 <FormItem>
                   <FormLabel>Принцип розсилки (Цільова авдиторія)</FormLabel>
                   <Select
-                    disabled={isLoading}
+                    disabled={isLoading || initialFilters.length === 0}
                     onValueChange={field.onChange}
                     value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Оберіть кому відправити..." />
+                        <SelectValue
+                          placeholder={
+                            initialFilters.length === 0
+                              ? "Немає доступних фільтрів"
+                              : "Оберіть фільтр аудиторії..."
+                          }
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="all">Усім користувачам</SelectItem>
-                      <SelectItem value="active_only">
-                        Тільки неактивним за останній місяць
-                      </SelectItem>
-                      <SelectItem value="test">
-                        Тестова розсилка (адміністратори)
-                      </SelectItem>
+                      {initialFilters.map((filter) => (
+                        <SelectItem
+                          key={filter.id}
+                          value={filter.id.toString()}
+                        >
+                          {filter.title}{" "}
+                          <span className="text-muted-foreground text-xs">
+                            ({filter.name})
+                          </span>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
