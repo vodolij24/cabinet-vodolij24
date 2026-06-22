@@ -6,7 +6,7 @@ import { MailingClient } from "./components/client";
 interface MailingPageProps {
   params: Promise<{ storeId: string }> | { storeId: string }; // Залежно від версії Next.js 14/15
 }
-*/
+*/ //
 const MailingPage = async () => {
   // Очікуємо параметри, якщо це Next.js 15 (у Next.js 14 це можна прибрати)
   //const resolvedParams = await params;
