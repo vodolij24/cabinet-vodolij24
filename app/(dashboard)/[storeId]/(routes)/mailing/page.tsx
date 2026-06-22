@@ -2,14 +2,14 @@
 import prismadb from "@/lib/prismadb";
 import { MailingClient } from "./components/client";
 
-// Якщо сторінка приймає параметри (наприклад, storeId з URL), додаємо їх у пропси
+/*
 interface MailingPageProps {
   params: Promise<{ storeId: string }> | { storeId: string }; // Залежно від версії Next.js 14/15
 }
-
-const MailingPage = async ({ params }: MailingPageProps) => {
+*/
+const MailingPage = async () => {
   // Очікуємо параметри, якщо це Next.js 15 (у Next.js 14 це можна прибрати)
-  const resolvedParams = await params;
+  //const resolvedParams = await params;
 
   // Завантажуємо всі фільтри розсилок з бази даних
   const filters = await prismadb.mailingFilter.findMany({
