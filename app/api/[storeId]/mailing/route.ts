@@ -125,6 +125,10 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
       // Викликаємо вашу функцію відправки
       await sendMainCustomerNotification(chatIds, messageText);
+      // Функція затримки, яка повертає проміс
+      const delay = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+      await delay(12000);
     }
 
     return NextResponse.json({
