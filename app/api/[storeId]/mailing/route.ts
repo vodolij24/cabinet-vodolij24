@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const body = await req.json();
 
     // Тепер з форми приходить filterId (Int) та текст повідомлення
-    const { filterId, messageText, testMode = true } = body;
+    const { filterId, messageText, testMode } = body;
     // Додав прапорець testMode (за замовчуванням true).
     // Якщо true — розсилка в телеграм НЕ йде, тільки логуємо в консоль результат.
 

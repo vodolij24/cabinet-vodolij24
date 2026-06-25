@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -25,11 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox"; // Імпортуємо чекбокс shadcn
 import { toast } from "react-hot-toast";
 import { useState } from "react";
 import axios from "axios";
 
-// Описуємо інтерфейс для фільтра, який приходить з Prisma
 interface MailingFilterItem {
   id: number;
   name: string;
@@ -37,12 +38,6 @@ interface MailingFilterItem {
   conditions: string;
 }
 
-interface MailingFormValues {
-  targetGroup: string; // Тепер тут буде ID фільтра у вигляді рядка
-  messageText: string;
-}
-
-// Схема валідації форми
 const formSchema = z.object({
   targetGroup: z
     .string({
@@ -52,10 +47,13 @@ const formSchema = z.object({
   messageText: z.string().min(5, {
     message: "Повідомлення має містити мінімум 5 символів",
   }),
+  testMode: z.boolean(), // Просто обов'язковий boolean
 });
 
+type MailingFormValues = z.infer<typeof formSchema>;
+
 interface MailingClientProps {
-  initialFilters: MailingFilterItem[]; // Передаємо масив фільтрів з сервера
+  initialFilters: MailingFilterItem[];
 }
 
 export const MailingClient = ({ initialFilters = [] }: MailingClientProps) => {
@@ -63,16 +61,15 @@ export const MailingClient = ({ initialFilters = [] }: MailingClientProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Ініціалізація форми
   const form = useForm<MailingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      targetGroup: "", // Залишаємо пустим за замовчуванням, щоб змусити обрати
+      targetGroup: "",
       messageText: "",
+      testMode: true, // Початковий стан: режим тесту активований
     },
   });
 
-  // Обробник відправки форми
   const onSubmit = async (data: MailingFormValues) => {
     try {
       setIsLoading(true);
@@ -87,31 +84,29 @@ export const MailingClient = ({ initialFilters = [] }: MailingClientProps) => {
 
       let url = `/api/${params.storeId}/mailing`;
 
-      // Відправка запиту на сервер
-      // ПРИМІТКА: додайте передачу testMode: true/false, якщо виведете чекбокс на інтерфейс
+      // Передаємо динамічне значення testMode з форми
       const response = await axios.post(url, {
         filterId: parseInt(data.targetGroup, 10),
         messageText: data.messageText,
-        testMode: true, // міняйте на значення з форми, коли вимкнете режим тесту
+        testMode: data.testMode,
       });
 
-      // Витягуємо кількість отримувачів, яку нарахував бекенд
       const count = response.data?.recipientsCount ?? 0;
       const isTest = response.data?.testMode;
 
-      // Виводимо гарне інформативне повідомлення в тостер
       if (isTest) {
         toast.success(
           `Тест! Цільова група ${filterName} зібрала користувачів: ${count} шт. (Розсилка не виконувалась)`,
-          {
-            duration: 5000, // тримаємо тостер трохи довше, щоб встигнути прочитати цифру
-          }
+          { duration: 5000 }
         );
       } else {
-        toast.success(`Розсилку успішно активовано для ${count} користувачів!`);
+        toast.success(
+          `Бойову розсилку успішно активовано для ${count} користувачів!`
+        );
       }
 
-      form.reset({ targetGroup: "", messageText: "" });
+      // Скидаємо лише текстові поля, зберігаючи стан чекбокса для наступних розсилок
+      form.reset({ targetGroup: "", messageText: "", testMode: data.testMode });
       router.refresh();
     } catch (error: any) {
       console.error("Mailing error:", error);
@@ -124,9 +119,9 @@ export const MailingClient = ({ initialFilters = [] }: MailingClientProps) => {
       setIsLoading(false);
     }
   };
+
   return (
     <>
-      {/* Верхня панель */}
       <div className="flex items-center justify-between mb-4">
         <Heading
           title="Розсилки"
@@ -136,11 +131,10 @@ export const MailingClient = ({ initialFilters = [] }: MailingClientProps) => {
 
       <Separator className="mb-6" />
 
-      {/* Форма керування розсилкою */}
       <div className="max-w-2xl bg-card border rounded-lg p-6 shadow-sm">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Селектор принципу розсилки */}
+            {/* Селектор цільової аудиторії */}
             <FormField
               control={form.control}
               name="targetGroup"
@@ -202,14 +196,46 @@ export const MailingClient = ({ initialFilters = [] }: MailingClientProps) => {
               )}
             />
 
+            {/* НОВЕ ПОЛЕ: Чекбокс Режиму Тестування */}
+            <FormField
+              control={form.control}
+              name="testMode"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-slate-50/50">
+                  <FormControl>
+                    <Checkbox
+                      disabled={isLoading}
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="cursor-pointer">
+                      Режим тестування розсилки
+                    </FormLabel>
+                    <FormDescription>
+                      Якщо увімкнено — система лише підрахує кількість клієнтів.
+                      Вимкніть цей прапорець, щоб надіслати реальні
+                      повідомлення.
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+
             {/* Кнопка відправки */}
             <Button
               type="submit"
               disabled={isLoading}
+              variant={form.watch("testMode") ? "default" : "destructive"} // Зміна кольору кнопки для застереження, якщо це БОЙОВА розсилка
               className="w-full md:w-auto"
             >
               <Send className="mr-2 h-4 w-4" />
-              {isLoading ? "Надсилання..." : "Запустити розсилку"}
+              {isLoading
+                ? "Обробка..."
+                : form.watch("testMode")
+                ? "Протестувати фільтр"
+                : "Запустити реальну розсилку"}
             </Button>
           </form>
         </Form>
