@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'Кабінет',
-  description: 'Створення виделення і редагування даних курєрів',
+  description: 'Особистий кабінет Vodolij',
 }
 
 export default async function RootLayout({
@@ -16,11 +16,9 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="uk" suppressHydrationWarning>
       <body className={inter.className}>
-        <Providers>  {/* Now here is your client side part */}
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

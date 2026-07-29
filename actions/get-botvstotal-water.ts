@@ -1,72 +1,91 @@
 import prismadb from "@/lib/prismadb";
+import {
+  addMonths,
+  eachMonthOfInterval,
+  format,
+  startOfMonth,
+  subMonths,
+} from "date-fns";
+import { uk } from "date-fns/locale";
 
-interface GraphData {
+export type MonthWaterPoint = {
   name: string;
   total: number;
   bot: number;
+};
+
+function toDayKey(raw: string | null | undefined, fallback: Date): string {
+  const s = raw?.trim();
+  if (!s) return format(fallback, "yyyy-MM-dd");
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+
+  const dmy = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+  }
+
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) return format(parsed, "yyyy-MM-dd");
+  return format(fallback, "yyyy-MM-dd");
 }
 
-export const getBotVsTotalGraphRevenue = async (): Promise<GraphData[]> => {
-  const statistics = await prismadb.daily_statistics.findMany({
-    select: {
-      totalWater: true,
-      createdAt: true,
-    },
-  });
+export const getBotVsTotalGraphRevenue = async (): Promise<MonthWaterPoint[]> => {
+  const end = startOfMonth(new Date());
+  const start = startOfMonth(subMonths(end, 11));
 
-  const botStatistic = await prismadb.botAnalyticsDaylySnapshot.findMany({
-    select: {
-      totalWater: true,
-      createdAt: true,
-    },
-  });
+  const [statistics, botStatistic] = await Promise.all([
+    prismadb.daily_statistics.findMany({
+      where: {
+        createdAt: {
+          gte: subMonths(start, 1),
+          lt: addMonths(end, 2),
+        },
+      },
+      select: {
+        totalWater: true,
+        date: true,
+        createdAt: true,
+      },
+    }),
+    prismadb.botAnalyticsDaylySnapshot.findMany({
+      where: {
+        createdAt: {
+          gte: start,
+          lt: addMonths(end, 1),
+        },
+      },
+      select: {
+        totalWater: true,
+        createdAt: true,
+      },
+    }),
+  ]);
 
-  const monthlyWater: { [key: number]: number } = {};
+  const months = eachMonthOfInterval({ start, end });
+  const byMonth = new Map<string, MonthWaterPoint>();
+  for (const month of months) {
+    const key = format(month, "yyyy-MM");
+    byMonth.set(key, {
+      name: format(month, "LLL yy", { locale: uk }),
+      total: 0,
+      bot: 0,
+    });
+  }
 
-  const monthlyBotWater: { [key: number]: number } = {};
-
-  // 2. Групуємо дохід по місяцях
   for (const stat of statistics) {
-    const month = stat.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
-
-    const water = Math.round(stat.totalWater) || 0;
-
-    // Adding the revenue for this order to the respective month
-    monthlyWater[month] = (monthlyWater[month] || 0) + water;
+    const dayKey = toDayKey(stat.date, stat.createdAt);
+    const monthKey = dayKey.slice(0, 7);
+    const bucket = byMonth.get(monthKey);
+    if (!bucket) continue;
+    bucket.total += Math.round(stat.totalWater || 0);
   }
 
   for (const stat of botStatistic) {
-    const month = stat.createdAt.getMonth();
-
-    const water = stat.totalWater ? Math.round(stat.totalWater) : 0;
-
-    monthlyBotWater[month] = (monthlyBotWater[month] || 0) + water;
+    const monthKey = format(stat.createdAt, "yyyy-MM");
+    const bucket = byMonth.get(monthKey);
+    if (!bucket) continue;
+    bucket.bot += Math.round(stat.totalWater || 0);
   }
 
-  // Converting the grouped data into the format expected by the graph
-  const graphData: GraphData[] = [
-    { name: "СІЧ", total: 0, bot: 0 },
-    { name: "ЛЮТ", total: 0, bot: 0 },
-    { name: "БЕР", total: 0, bot: 0 },
-    { name: "КВІ", total: 0, bot: 0 },
-    { name: "ТРА", total: 0, bot: 0 },
-    { name: "ЧЕР", total: 0, bot: 0 },
-    { name: "ЛИП", total: 0, bot: 0 },
-    { name: "СЕР", total: 0, bot: 0 },
-    { name: "ВЕР", total: 0, bot: 0 },
-    { name: "ЖОВ", total: 0, bot: 0 },
-    { name: "ЛИС", total: 0, bot: 0 },
-    { name: "ГРУ", total: 0, bot: 0 },
-  ];
-
-  // Filling in the revenue data
-  for (const month in monthlyWater) {
-    graphData[parseInt(month)].total = monthlyWater[parseInt(month)];
-  }
-
-  for (const month in monthlyBotWater) {
-    graphData[parseInt(month)].bot = monthlyBotWater[parseInt(month)];
-  }
-
-  return graphData;
+  return months.map((month) => byMonth.get(format(month, "yyyy-MM"))!);
 };

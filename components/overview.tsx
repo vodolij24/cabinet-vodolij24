@@ -9,17 +9,17 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
+import type { MonthRevenuePoint } from "@/actions/get-graph-revenue";
 
-// Налаштування приємного зеленого кольору відповідно до попереднього графіка
 const chartConfig = {
   total: {
-    label: "Overall",
-    color: "#10b981", // Насичений смарагдовий зелений
+    label: "Дохід",
+    color: "#10b981",
   },
 } satisfies ChartConfig;
 
 interface OverviewProps {
-  data: unknown[];
+  data: MonthRevenuePoint[];
 }
 
 export const Overview: React.FC<OverviewProps> = ({ data }) => {
@@ -29,7 +29,6 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
       className="min-h-[200px] w-full h-[350px]"
     >
       <BarChart accessibilityLayer data={data}>
-        {/* Додано легку горизонтальну сітку */}
         <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
 
         <XAxis
@@ -48,20 +47,17 @@ export const Overview: React.FC<OverviewProps> = ({ data }) => {
           tickFormatter={(value) => `₴${value}`}
         />
 
-        {/* Додано інтерактивну підказку з кастомним зеленим фокусом ховера */}
         <ChartTooltip
           cursor={{ fill: "rgba(16, 185, 129, 0.04)" }}
-          content={<ChartTooltipContent hideLabel />}
+          content={<ChartTooltipContent />}
         />
 
-        {/* Додано легенду під графіком */}
         <ChartLegend content={<ChartLegendContent />} />
 
-        {/* Змінено fill на CSS-змінну, що береться з конфігу вище */}
         <Bar
           dataKey="total"
           fill="var(--color-total)"
-          name="Загальний дохід"
+          name="Дохід"
           radius={[4, 4, 0, 0]}
         />
       </BarChart>

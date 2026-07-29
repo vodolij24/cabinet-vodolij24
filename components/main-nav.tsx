@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
@@ -10,33 +10,32 @@ export function MainNav({
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  const params = useParams();
 
   const routes = [
     {
-      href: `/${params.storeId}`,
+      href: `/`,
       label: "Аналітика",
-      active: pathname === `/${params.storeId}`,
+      active: pathname === `/`,
     },
     {
-      href: `/${params.storeId}/mailing`,
+      href: `/mailing`,
       label: "Розсилки",
-      active: pathname === `/${params.storeId}/mailing`,
+      active: pathname === `/mailing`,
     },
     {
-      href: `/${params.storeId}/sizes`,
+      href: `/statistics`,
       label: "Статистика",
-      active: pathname === `/${params.storeId}/sizes`,
+      active: pathname === `/statistics`,
     },
     {
-      href: `/${params.storeId}/transactions`,
+      href: `/transactions`,
       label: "Транзакції",
-      active: pathname === `/${params.storeId}/transactions`,
+      active: pathname === `/transactions`,
     },
     {
-      href: `/${params.storeId}/tasks`,
+      href: `/tasks`,
       label: "Задачі",
-      active: pathname === `/${params.storeId}/tasks`,
+      active: pathname === `/tasks`,
     },
   ];
 

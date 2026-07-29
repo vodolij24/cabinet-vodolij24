@@ -1,50 +1,69 @@
 import prismadb from "@/lib/prismadb";
+import {
+  addMonths,
+  eachMonthOfInterval,
+  format,
+  startOfMonth,
+  subMonths,
+} from "date-fns";
+import { uk } from "date-fns/locale";
 
-interface GraphData {
+export type MonthRevenuePoint = {
   name: string;
   total: number;
+};
+
+function toDayKey(raw: string | null | undefined, fallback: Date): string {
+  const s = raw?.trim();
+  if (!s) return format(fallback, "yyyy-MM-dd");
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+
+  const dmy = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+  }
+
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) return format(parsed, "yyyy-MM-dd");
+  return format(fallback, "yyyy-MM-dd");
 }
 
-export const getGraphRevenue = async (): Promise<GraphData[]> => {
+export const getGraphRevenue = async (): Promise<MonthRevenuePoint[]> => {
+  const end = startOfMonth(new Date());
+  const start = startOfMonth(subMonths(end, 11));
+
+  // Ширше вікно: денний джоб може писати статистику із затримкою
   const statistics = await prismadb.daily_statistics.findMany({
+    where: {
+      createdAt: {
+        gte: subMonths(start, 1),
+        lt: addMonths(end, 2),
+      },
+    },
     select: {
       totalRevenue: true,
+      date: true,
       createdAt: true,
     },
   });
 
-  const monthlyRevenue: { [key: number]: number } = {};
+  const months = eachMonthOfInterval({ start, end });
+  const byMonth = new Map<string, MonthRevenuePoint>();
+  for (const month of months) {
+    const key = format(month, "yyyy-MM");
+    byMonth.set(key, {
+      name: format(month, "LLL yy", { locale: uk }),
+      total: 0,
+    });
+  }
 
-  // 2. Групуємо дохід по місяцях
   for (const stat of statistics) {
-    const month = stat.createdAt.getMonth(); // 0 for Jan, 1 for Feb, ...
-
-    const revenue = Math.round(stat.totalRevenue) || 0;
-
-    // Adding the revenue for this order to the respective month
-    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + revenue;
+    const dayKey = toDayKey(stat.date, stat.createdAt);
+    const monthKey = dayKey.slice(0, 7); // yyyy-MM
+    const bucket = byMonth.get(monthKey);
+    if (!bucket) continue;
+    bucket.total += Math.round(stat.totalRevenue || 0);
   }
 
-  // Converting the grouped data into the format expected by the graph
-  const graphData: GraphData[] = [
-    { name: "СІЧ", total: 0 },
-    { name: "ЛЮТ", total: 0 },
-    { name: "БЕР", total: 0 },
-    { name: "КВІ", total: 0 },
-    { name: "ТРА", total: 0 },
-    { name: "ЧЕР", total: 0 },
-    { name: "ЛИП", total: 0 },
-    { name: "СЕР", total: 0 },
-    { name: "ВЕР", total: 0 },
-    { name: "ЖОВ", total: 0 },
-    { name: "ЛИС", total: 0 },
-    { name: "ГРУ", total: 0 },
-  ];
-
-  // Filling in the revenue data
-  for (const month in monthlyRevenue) {
-    graphData[parseInt(month)].total = monthlyRevenue[parseInt(month)];
-  }
-
-  return graphData;
+  return months.map((month) => byMonth.get(format(month, "yyyy-MM"))!);
 };

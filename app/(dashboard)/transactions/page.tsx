@@ -1,0 +1,51 @@
+import prismadb from "@/lib/prismadb";
+
+import { BotTrransactionsColumn } from "./components/columns";
+import { BotTransactions } from "./components/client";
+
+const TransactionsPage = async () => {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 2);
+
+  const daily_statistics = await prismadb.transactions.findMany({
+    where: {
+      date: {
+        gte: thirtyDaysAgo,
+      },
+    },
+    orderBy: {
+      date: "desc",
+    },
+  });
+
+  const formattedBotTransactions: BotTrransactionsColumn[] =
+    daily_statistics.map((item) => ({
+      id: item.id,
+      date: item.date.toLocaleString("uk-UA", {
+        timeZone: "UTC",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      cardId: item.cardId,
+      device: item.device,
+      waterRequested: item.waterRequested,
+      waterFullfiled: item.waterFullfilled,
+      cashAmount: item.cashPaymant,
+      personalCardAmount: item.cardPaymant,
+      creditCardAmount: item.onlinePaymant,
+      transactionChange: item.paymantChange,
+    }));
+
+  return (
+    <div className="flex-col">
+      <div className="flex-1 space-y-4 p-8 pt-6">
+        <BotTransactions data={formattedBotTransactions} />
+      </div>
+    </div>
+  );
+};
+
+export default TransactionsPage;

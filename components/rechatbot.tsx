@@ -9,24 +9,24 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
+import type { MonthWaterPoint } from "@/actions/get-botvstotal-water";
 
-// ПРАВИЛЬНО: Ключі мають називатися точно так само, як ваші dataKey у <Bar />
 const chartConfig = {
   total: {
-    label: "Overall",
-    color: "#10b981", // Приємний зелений
+    label: "Мережа",
+    color: "#10b981",
   },
   bot: {
-    label: "BotOnly",
-    color: "#a7f3d0", // М'ятний зелений
+    label: "Бот",
+    color: "#a7f3d0",
   },
 } satisfies ChartConfig;
 
-interface OverviewProps {
-  data: unknown[];
+interface RechartBotProps {
+  data: MonthWaterPoint[];
 }
 
-export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
+export const RechartBot: React.FC<RechartBotProps> = ({ data }) => {
   return (
     <ChartContainer
       config={chartConfig}
@@ -48,30 +48,26 @@ export const RechartBot: React.FC<OverviewProps> = ({ data }) => {
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `₴${value}`}
+          tickFormatter={(value) => `${value} л`}
         />
 
-        {/* Налаштування підказки при наведенні */}
         <ChartTooltip
           cursor={{ fill: "rgba(16, 185, 129, 0.04)" }}
-          content={<ChartTooltipContent hideLabel />}
+          content={<ChartTooltipContent />}
         />
 
-        {/* Додавання легенди під графіком */}
         <ChartLegend content={<ChartLegendContent />} />
 
-        {/* Тепер var(--color-total) підтягнеться успішно */}
         <Bar
           dataKey="total"
           fill="var(--color-total)"
-          name="Загальний дохід"
+          name="Мережа"
           radius={[4, 4, 0, 0]}
         />
-        {/* Тепер var(--color-bot) підтягнеться успішно */}
         <Bar
           dataKey="bot"
           fill="var(--color-bot)"
-          name="Дохід через бота"
+          name="Бот"
           radius={[4, 4, 0, 0]}
         />
       </BarChart>

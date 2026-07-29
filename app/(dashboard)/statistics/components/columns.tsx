@@ -1,0 +1,54 @@
+"use client";
+
+import { ColumnDef } from "@tanstack/table-core";
+
+export type DailyStatColumn = {
+  id: number;
+  date: string;
+  totalWater: number;
+  totalTransactions: number;
+  uniqueUsers: number;
+  topUserId: number | null;
+  topUserVolume: number | null;
+  topDeviceId: number | null;
+  topDeviceTransactions: number | null;
+};
+
+export const columns: ColumnDef<DailyStatColumn>[] = [
+  {
+    accessorKey: "date",
+    header: "Дата",
+  },
+  {
+    accessorKey: "totalWater",
+    header: "Налито",
+  },
+  {
+    accessorKey: "totalTransactions",
+    header: "Транзакції",
+  },
+  {
+    accessorKey: "uniqueUsers",
+    header: "Користувачі",
+  },
+  {
+    accessorKey: "topUserId",
+    header: "Топ Карта",
+  },
+  {
+    accessorKey: "topUserVolume",
+    header: "Обє’м лідера",
+  },
+  {
+    accessorKey: "topDeviceId",
+    header: "Топ Апарат",
+    filterFn: "includesString",
+    cell: ({ row }) => {
+      return row.getValue("topDeviceId")?.toString() || "-";
+    },
+  },
+  {
+    accessorKey: "topDeviceTransactions",
+    header: "Наливи Топ Апарату",
+  },
+];
