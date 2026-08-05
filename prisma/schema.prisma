@@ -102,26 +102,81 @@ model daily_statistics {
 
 model workers {
   id             Int      @id @default(autoincrement())
-  chat_id        BigInt   @unique
+  chat_id        BigInt?  @unique
   name           String?  @db.VarChar(255)
   phone          String?  @db.VarChar(255)
+  /// manager | technician | financier | cashier | area
+  role           String?  @db.VarChar(64)
   active         Boolean?
   dialoguestatus String?  @default("") @db.VarChar(255)
   tasks          tasks[]
+  machines       vending_machines[]
+
+  @@index([role])
+}
+
+/// Користувачі другого (staff) бота після /start
+model StaffBotUser {
+  id        Int      @id @default(autoincrement())
+  chat_id   BigInt   @unique
+  username  String?  @db.VarChar(255)
+  firstName String?  @db.VarChar(255)
+  lastName  String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model tasks {
-  id          Int       @id @default(autoincrement())
-  title       String    @db.VarChar(255)
-  description String?
-  status      String?   @default("todo")
-  priority    String?   @default("medium")
-  deviceId    Int?
-  completedAt DateTime? @db.Timestamptz(6)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  workerId    Int?
-  worker      workers?  @relation(fields: [workerId], references: [id])
+  id              Int       @id @default(autoincrement())
+  title           String    @db.VarChar(255)
+  description     String?
+  /// База (локація)
+  baseLocation    String?   @db.VarChar(255)
+  /// Термін виконання
+  dueAt           DateTime? @db.Timestamptz(6)
+  /// Спільний id для задачі на кількох виконавців / категорію
+  groupId         String?   @db.VarChar(64)
+  /// operational | financial
+  type            String    @default("operational") @db.VarChar(32)
+  /// once | monthly (для financial)
+  schedule        String?   @db.VarChar(32)
+  /// напр. 2026-08 — для місячних financial без дублів
+  periodKey       String?   @db.VarChar(16)
+  /// Утримання із заробітної плати (цілі грн, кратні 100)
+  salaryDeduction Int?
+  /// Коментар техніка при виконанні
+  technicianComment String?
+  /// Причина відхилення техніком
+  rejectReason      String?
+  /// JSON-масив URL фото
+  photoUrls         String?
+  /// accepted | rejected — рішення керівника
+  managerDecision   String?   @db.VarChar(32)
+  /// Чи застосовано утримання після рішення керівника
+  deductionApplied  Boolean?  @default(false)
+  /// Коментар керівника
+  managerComment    String?
+  reviewedAt        DateTime? @db.Timestamptz(6)
+  /// id workers (керівник, що прийняв рішення)
+  reviewedById      Int?
+  /// todo | awaiting_manager_confirm | awaiting_manager_decision | done | ...
+  status          String?   @default("todo")
+  priority        String?   @default("medium")
+  deviceId        Int?
+  completedAt     DateTime? @db.Timestamptz(6)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  workerId        Int?
+  worker          workers?  @relation(fields: [workerId], references: [id])
+
+  @@index([type])
+  @@index([periodKey])
+  @@index([groupId])
+  @@index([dueAt])
+  @@index([status])
+  @@index([workerId, periodKey])
 }
 
 model transactions {
@@ -192,7 +247,14 @@ model technicians {
 
 model vending_machines {
   id                    Int                                         @id @default(autoincrement())
+  name                  String?                                     @db.VarChar(255)
+  address               String?                                     @db.VarChar(255)
   location              String                                      @db.VarChar(255)
+  lat                   String?                                     @db.VarChar(64)
+  lon                   String?                                     @db.VarChar(64)
+  /// workers.id з role = technician
+  technicianId          Int?
+  technicianWorker      workers?                                    @relation(fields: [technicianId], references: [id])
   status                enum_vending_machines_status?               @default(operational)
   water_level           Int?
   daily_sales           Int?                                        @default(0)
@@ -204,6 +266,8 @@ model vending_machines {
   water_quality_status  enum_vending_machines_water_quality_status? @default(good)
   createdAt             DateTime                                    @default(now())
   updatedAt             DateTime
+
+  @@index([technicianId])
 }
 
 model water_quality_tests {

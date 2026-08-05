@@ -1,4 +1,9 @@
 import prismadb from "@/lib/prismadb";
+import {
+  taskScheduleLabel,
+  taskStatusLabel,
+  taskTypeLabel,
+} from "@/lib/task-fields";
 
 import { TaskColumn } from "./components/columns";
 import { TasksClient } from "./components/client";
@@ -7,7 +12,7 @@ const TasksPage = async () => {
   const tasks = await prismadb.tasks.findMany({
     where: {},
     orderBy: {
-      status: "desc",
+      createdAt: "desc",
     },
   });
 
@@ -18,11 +23,19 @@ const TasksPage = async () => {
   const formattedTask: TaskColumn[] = tasks.map((item) => ({
     id: item.id,
     title: item.title,
+    type: taskTypeLabel(item.type),
+    baseLocation: item.baseLocation || "—",
+    dueAt: item.dueAt
+      ? item.dueAt.toLocaleDateString("uk-UA")
+      : "—",
+    salaryDeduction:
+      item.salaryDeduction != null
+        ? `${item.salaryDeduction.toLocaleString("uk-UA")} грн`
+        : "—",
+    schedule: taskScheduleLabel(item.schedule),
     deviceId: item.deviceId,
     description: item.description,
-    status: item.status,
-    priority: item.priority,
-    completedAt: item.completedAt,
+    status: taskStatusLabel(item.status),
     workerId: item.workerId
       ? workers.find((worker) => worker.id == item.workerId)?.name
       : "",

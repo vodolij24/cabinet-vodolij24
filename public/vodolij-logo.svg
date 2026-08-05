@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 44" fill="none">
+  <circle cx="22" cy="22" r="18" fill="#0284c7"/>
+  <circle cx="22" cy="22" r="18" fill="url(#g)" fill-opacity="0.35"/>
+  <path d="M8 24c3-2 5-2 8 0s5 2 8 0 5-2 8 0" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <path d="M8 29c3-2 5-2 8 0s5 2 8 0 5-2 8 0" stroke="#bae6fd" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M14 15c2.2 0 3.5 1.8 3.5 3.6S16.2 22 14 22s-3.5-1.6-3.5-3.4S11.8 15 14 15Z" fill="#e0f2fe"/>
+  <text x="48" y="28" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="700" fill="#0369a1">Vodolij</text>
+  <defs>
+    <linearGradient id="g" x1="8" y1="6" x2="36" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#0369a1"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -43,3 +43,6 @@ next-env.d.ts
 
 
 lib/generated/prisma/
+
+# technician photo reports
+/public/uploads/

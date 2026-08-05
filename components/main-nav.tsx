@@ -38,6 +38,11 @@ export function MainNav({
       active: pathname === `/tasks`,
     },
     {
+      href: `/machines`,
+      label: "Автомати",
+      active: pathname === `/machines` || pathname.startsWith(`/machines/`),
+    },
+    {
       href: `/settings`,
       label: "Налаштування",
       active: pathname === `/settings` || pathname.startsWith(`/settings/`),
