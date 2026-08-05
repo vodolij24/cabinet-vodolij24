@@ -2,12 +2,25 @@ import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
 import { sendTelegramTaskNotification } from "@/lib/telegram";
+import { assertApprovedAccess } from "@/lib/cabinet-access";
+
+function accessErrorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "UNAUTHORIZED") {
+    return new NextResponse("Unauthenticated", { status: 401 });
+  }
+  if (message === "FORBIDDEN") {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+  return null;
+}
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    await assertApprovedAccess();
     if (!(await params).taskId) {
       return new NextResponse("Task id is required", { status: 400 });
     }
@@ -20,6 +33,8 @@ export async function GET(
 
     return NextResponse.json(task?.id);
   } catch (error) {
+    const denied = accessErrorResponse(error);
+    if (denied) return denied;
     console.log("[TASK_GET]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
@@ -30,6 +45,7 @@ export async function DELETE(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    await assertApprovedAccess();
     if (!(await params).taskId) {
       return new NextResponse("Task id is required", { status: 400 });
     }
@@ -42,6 +58,8 @@ export async function DELETE(
 
     return NextResponse.json(task.id);
   } catch (error) {
+    const denied = accessErrorResponse(error);
+    if (denied) return denied;
     console.log("[TASK_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
@@ -52,6 +70,7 @@ export async function PATCH(
   { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    await assertApprovedAccess();
     const body = await req.json();
 
     const { title, description, deviceId, priority, workerId } = body;
@@ -92,6 +111,8 @@ export async function PATCH(
 
     return NextResponse.json(task.id);
   } catch (error) {
+    const denied = accessErrorResponse(error);
+    if (denied) return denied;
     console.log("[TASK_PATCH]", error);
     return new NextResponse("Internal error", { status: 500 });
   }

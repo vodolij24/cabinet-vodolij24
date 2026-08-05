@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
 import { sendMainCustomerNotification } from "@/lib/telegram";
+import { assertApprovedAccess } from "@/lib/cabinet-access";
 
 export async function POST(req: Request) {
   try {
+    await assertApprovedAccess();
     const body = await req.json();
 
     const { filterId, messageText, testMode } = body;
@@ -115,6 +117,13 @@ export async function POST(req: Request) {
       testMode,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "UNAUTHORIZED") {
+      return new NextResponse("Unauthenticated", { status: 401 });
+    }
+    if (message === "FORBIDDEN") {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
     console.error("[MAILINGS_POST_ERROR]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

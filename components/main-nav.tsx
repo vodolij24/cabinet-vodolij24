@@ -37,6 +37,11 @@ export function MainNav({
       label: "Задачі",
       active: pathname === `/tasks`,
     },
+    {
+      href: `/settings`,
+      label: "Налаштування",
+      active: pathname === `/settings` || pathname.startsWith(`/settings/`),
+    },
   ];
 
   return (

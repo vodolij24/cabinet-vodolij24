@@ -10,7 +10,7 @@ datasource db {
 }
 
 model users {
-  id              Int      @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   chat_id         BigInt   @unique
   firstname       String?  @db.VarChar(255)
   lastname        String?  @db.VarChar(255)
@@ -27,7 +27,7 @@ model users {
 }
 
 model Apiusers {
-  id           Int      @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   user_id      BigInt   @unique
   chat_id      BigInt   @unique
   name         String?  @db.VarChar(255)
@@ -64,7 +64,7 @@ model bot_transactions {
 }
 
 model cards {
-  id            Int      @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   cardId        Int      @unique
   Number        String?  @db.VarChar(255)
   Card          String?  @db.VarChar(255)
@@ -124,7 +124,6 @@ model tasks {
   worker      workers?  @relation(fields: [workerId], references: [id])
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model transactions {
   id              Int      @id(map: "transactions_pk") @default(autoincrement())
   device          Int
@@ -270,18 +269,6 @@ enum enum_maintenance_tasks_status {
   scheduled
 }
 
-enum enum_tasks_priority {
-  low
-  medium
-  high
-}
-
-enum enum_tasks_status {
-  todo
-  in_progress
-  done
-}
-
 enum enum_technicians_specialization {
   general
   filters
@@ -327,4 +314,18 @@ model MailingFilter {
   // Тут зберігатимемо всі умови: { favoriteDevice: "PS5", updatedAt_less_than: "2026-05-01" }
   conditions  String  
   
+}
+
+/// Доступ до особистого кабінету (Clerk users)
+model CabinetAccess {
+  id        String   @id // Clerk userId
+  email     String?
+  name      String?
+  role      String   @default("admin") // поки лише admin
+  status    String   @default("pending") // pending | approved | rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([email])
 }
