@@ -21,7 +21,7 @@ export function locationFromSolitonName(name: string): string {
 
 export async function fetchSolitonDevices(): Promise<SolitonDevice[]> {
   const { data } = await axios.get(SOLITON_DEVICES_URL, { timeout: 20000 });
-  const list = Array.isArray(data?.devices) ? data.devices : [];
+  const list: unknown[] = Array.isArray(data?.devices) ? data.devices : [];
   return list
     .filter(
       (d: unknown): d is SolitonDevice =>
@@ -30,7 +30,7 @@ export async function fetchSolitonDevices(): Promise<SolitonDevice[]> {
         typeof (d as SolitonDevice).id === "string" &&
         typeof (d as SolitonDevice).name === "string"
     )
-    .map((d) => ({
+    .map((d: SolitonDevice) => ({
       id: d.id,
       name: d.name,
       lat: d.lat ?? null,
