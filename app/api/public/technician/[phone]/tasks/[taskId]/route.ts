@@ -10,6 +10,8 @@ import {
 import { saveTaskPhotoReport } from "@/lib/task-photos";
 
 export const runtime = "nodejs";
+/** Дозволяє multipart з кількома фото (ліміт платформи Vercel — ~4.5MB body на Hobby) */
+export const maxDuration = 60;
 
 async function readBody(req: Request): Promise<{
   action: string | null;

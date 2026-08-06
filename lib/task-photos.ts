@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
+import { put } from "@vercel/blob";
 
 const ALLOWED = new Set([
   "image/jpeg",
@@ -20,9 +21,47 @@ function extFor(mime: string): string {
   return "jpg";
 }
 
+function useVercelBlob(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+async function saveOneLocal(
+  taskId: number,
+  file: File,
+  buf: Buffer
+): Promise<string> {
+  const dir = path.join(
+    process.cwd(),
+    "public",
+    "uploads",
+    "tasks",
+    String(taskId)
+  );
+  await mkdir(dir, { recursive: true });
+  const name = `${Date.now()}-${randomBytes(4).toString("hex")}.${extFor(file.type)}`;
+  await writeFile(path.join(dir, name), buf);
+  return `/uploads/tasks/${taskId}/${name}`;
+}
+
+async function saveOneBlob(
+  taskId: number,
+  file: File,
+  buf: Buffer
+): Promise<string> {
+  const name = `${Date.now()}-${randomBytes(4).toString("hex")}.${extFor(file.type)}`;
+  const pathname = `tasks/${taskId}/${name}`;
+  const blob = await put(pathname, buf, {
+    access: "public",
+    contentType: file.type || "image/jpeg",
+    addRandomSuffix: false,
+  });
+  return blob.url;
+}
+
 /**
- * Зберігає фотозвіт у public/uploads/tasks/{taskId}/
- * Повертає публічні URL шляхи.
+ * Зберігає фотозвіт:
+ * - на Vercel (є BLOB_READ_WRITE_TOKEN) → Vercel Blob
+ * - локально без токена → public/uploads/tasks/{taskId}/
  */
 export async function saveTaskPhotoReport(
   taskId: number,
@@ -33,14 +72,7 @@ export async function saveTaskPhotoReport(
   }
 
   const urls: string[] = [];
-  const dir = path.join(
-    process.cwd(),
-    "public",
-    "uploads",
-    "tasks",
-    String(taskId)
-  );
-  await mkdir(dir, { recursive: true });
+  const blob = useVercelBlob();
 
   for (const file of files) {
     if (!ALLOWED.has(file.type)) {
@@ -53,9 +85,15 @@ export async function saveTaskPhotoReport(
     }
 
     const buf = Buffer.from(await file.arrayBuffer());
-    const name = `${Date.now()}-${randomBytes(4).toString("hex")}.${extFor(file.type)}`;
-    await writeFile(path.join(dir, name), buf);
-    urls.push(`/uploads/tasks/${taskId}/${name}`);
+    try {
+      const url = blob
+        ? await saveOneBlob(taskId, file, buf)
+        : await saveOneLocal(taskId, file, buf);
+      urls.push(url);
+    } catch (error) {
+      console.error("[TASK_PHOTO_SAVE]", error);
+      return { error: "Не вдалося зберегти фото" };
+    }
   }
 
   return { urls };
