@@ -21,8 +21,18 @@ function extFor(mime: string): string {
   return "jpg";
 }
 
-function hasVercelBlobToken(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+function isVercelRuntime(): boolean {
+  return Boolean(process.env.VERCEL);
+}
+
+function blobToken(): string | undefined {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  return token || undefined;
+}
+
+/** На Vercel завжди Blob; локально — Blob якщо є токен, інакше диск. */
+function shouldUseBlob(): boolean {
+  return isVercelRuntime() || Boolean(blobToken());
 }
 
 async function saveOneLocal(
@@ -46,7 +56,8 @@ async function saveOneLocal(
 async function saveOneBlob(
   taskId: number,
   file: File,
-  buf: Buffer
+  buf: Buffer,
+  token: string
 ): Promise<string> {
   const name = `${Date.now()}-${randomBytes(4).toString("hex")}.${extFor(file.type)}`;
   const pathname = `tasks/${taskId}/${name}`;
@@ -54,13 +65,14 @@ async function saveOneBlob(
     access: "public",
     contentType: file.type || "image/jpeg",
     addRandomSuffix: false,
+    token,
   });
   return blob.url;
 }
 
 /**
  * Зберігає фотозвіт:
- * - на Vercel (є BLOB_READ_WRITE_TOKEN) → Vercel Blob
+ * - Vercel / є BLOB_READ_WRITE_TOKEN → Vercel Blob
  * - локально без токена → public/uploads/tasks/{taskId}/
  */
 export async function saveTaskPhotoReport(
@@ -71,8 +83,20 @@ export async function saveTaskPhotoReport(
     return { error: `Максимум ${MAX_FILES} фото` };
   }
 
+  const useBlob = shouldUseBlob();
+  const token = blobToken();
+
+  if (useBlob && !token) {
+    console.error(
+      "[TASK_PHOTO_SAVE] BLOB_READ_WRITE_TOKEN missing on Vercel runtime"
+    );
+    return {
+      error:
+        "Сховище фото не налаштоване (BLOB_READ_WRITE_TOKEN). Підключіть Blob store до проєкту й зробіть Redeploy.",
+    };
+  }
+
   const urls: string[] = [];
-  const blob = hasVercelBlobToken();
 
   for (const file of files) {
     if (!ALLOWED.has(file.type)) {
@@ -86,9 +110,10 @@ export async function saveTaskPhotoReport(
 
     const buf = Buffer.from(await file.arrayBuffer());
     try {
-      const url = blob
-        ? await saveOneBlob(taskId, file, buf)
-        : await saveOneLocal(taskId, file, buf);
+      const url =
+        useBlob && token
+          ? await saveOneBlob(taskId, file, buf, token)
+          : await saveOneLocal(taskId, file, buf);
       urls.push(url);
     } catch (error) {
       console.error("[TASK_PHOTO_SAVE]", error);
