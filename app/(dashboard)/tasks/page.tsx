@@ -20,28 +20,50 @@ const TasksPage = async () => {
     where: {},
   });
 
-  const formattedTask: TaskColumn[] = tasks.map((item) => ({
-    id: item.id,
-    title: item.title,
-    type: taskTypeLabel(item.type),
-    baseLocation: item.baseLocation || "—",
-    dueAt: item.dueAt
-      ? item.dueAt.toLocaleDateString("uk-UA")
-      : "—",
-    salaryDeduction:
-      item.salaryDeduction != null
-        ? `${item.salaryDeduction.toLocaleString("uk-UA")} грн`
-        : "—",
-    schedule: taskScheduleLabel(item.schedule),
-    deviceId: item.deviceId,
-    description: item.description,
-    status: taskStatusLabel(item.status),
-    workerId: item.workerId
-      ? workers.find((worker) => worker.id == item.workerId)?.name
-      : "",
-    createdAt: item.createdAt.toLocaleString(),
-    updatedAt: item.updatedAt.toLocaleString(),
-  }));
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const formattedTask: TaskColumn[] = tasks.map((item) => {
+    const statusKey = item.status || "todo";
+    const workerName = item.workerId
+      ? workers.find((worker) => worker.id == item.workerId)?.name || ""
+      : "";
+
+    return {
+      id: item.id,
+      title: item.title,
+      type: taskTypeLabel(item.type),
+      typeKey: item.type || "operational",
+      baseLocation: item.baseLocation || "—",
+      dueAt: item.dueAt ? item.dueAt.toLocaleDateString("uk-UA") : "—",
+      dueAtSort: item.dueAt ? item.dueAt.getTime() : null,
+      overdue: Boolean(
+        item.dueAt &&
+          item.dueAt < startOfToday &&
+          statusKey !== "done"
+      ),
+      salaryDeduction:
+        item.salaryDeduction != null
+          ? `${item.salaryDeduction.toLocaleString("uk-UA")} грн`
+          : "—",
+      salaryDeductionValue: item.salaryDeduction,
+      schedule: taskScheduleLabel(item.schedule),
+      deviceId: item.deviceId,
+      description: item.description,
+      status: taskStatusLabel(item.status),
+      statusKey,
+      workerId: item.workerId
+        ? workers.find((worker) => worker.id == item.workerId)?.name
+        : "",
+      workerName,
+      createdAt: item.createdAt.toLocaleString(),
+      updatedAt: item.updatedAt.toLocaleString(),
+    };
+  });
 
   return (
     <div className="flex-col">
