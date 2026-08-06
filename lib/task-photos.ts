@@ -21,7 +21,7 @@ function extFor(mime: string): string {
   return "jpg";
 }
 
-function useVercelBlob(): boolean {
+function hasVercelBlobToken(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
@@ -72,7 +72,7 @@ export async function saveTaskPhotoReport(
   }
 
   const urls: string[] = [];
-  const blob = useVercelBlob();
+  const blob = hasVercelBlobToken();
 
   for (const file of files) {
     if (!ALLOWED.has(file.type)) {
