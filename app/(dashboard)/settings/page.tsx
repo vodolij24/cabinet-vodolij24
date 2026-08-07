@@ -8,6 +8,7 @@ import {
   listCabinetUsers,
   requireApprovedAccess,
 } from "@/lib/cabinet-access";
+import { syncStaffBotUsersToWorkers } from "@/lib/staff-bot-sync";
 import { SettingsUsersClient } from "./components/settings-users-client";
 import { SettingsWorkersClient } from "./components/settings-workers-client";
 
@@ -29,9 +30,12 @@ function staffLabel(u: {
 
 export default async function SettingsPage() {
   const access = await requireApprovedAccess();
+  // Підтягує тих, хто вже був у StaffBotUser, але ще не в workers
+  await syncStaffBotUsersToWorkers();
+
   const [users, workers, staffUsers] = await Promise.all([
     listCabinetUsers(),
-    prismadb.workers.findMany({ orderBy: { id: "asc" } }),
+    prismadb.workers.findMany({ orderBy: { id: "desc" } }),
     prismadb.staffBotUser.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
 
@@ -74,7 +78,7 @@ export default async function SettingsPage() {
         <div className="space-y-4">
           <Heading
             title="Користувачі бота"
-            description="Працівники staff-бота: роль (керівник, технік, фінансист, касир, площина) і привʼязка Telegram ID."
+            description="Після /start зʼявляються автоматично. Заповніть імʼя, телефон і роль."
           />
           <Separator />
           <SettingsWorkersClient

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
+import { ensureWorkerFromStaffBot } from "@/lib/staff-bot-sync";
 
 function unauthorized() {
   return new NextResponse("Unauthorized", { status: 401 });
@@ -19,7 +20,7 @@ function parseChatId(value: unknown): bigint | null {
   return null;
 }
 
-/** Другий (staff) бот: upsert користувача після /start */
+/** Другий (staff) бот: upsert StaffBotUser + worker після /start */
 export async function POST(req: Request) {
   try {
     const secret = process.env.STAFF_BOT_SECRET;
@@ -71,12 +72,20 @@ export async function POST(req: Request) {
       },
     });
 
+    const worker = await ensureWorkerFromStaffBot({
+      chatId,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    });
+
     return NextResponse.json({
       id: user.id,
       chat_id: user.chat_id.toString(),
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
+      workerId: worker.id,
     });
   } catch (error) {
     console.error("[STAFF_BOT_START]", error);

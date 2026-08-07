@@ -131,6 +131,16 @@ export async function PATCH(
       data,
     });
 
+    if (data.name && worker.chat_id !== null) {
+      await prismadb.staffBotUser.updateMany({
+        where: { chat_id: worker.chat_id },
+        data: {
+          firstName: data.name,
+          lastName: null,
+        },
+      });
+    }
+
     return NextResponse.json(serializeWorker(worker));
   } catch (error) {
     const denied = accessErrorResponse(error);
