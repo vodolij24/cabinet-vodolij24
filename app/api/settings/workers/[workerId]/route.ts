@@ -61,6 +61,11 @@ export async function PATCH(
       return new NextResponse("Worker id is required", { status: 400 });
     }
 
+    const existing = await prismadb.workers.findUnique({ where: { id } });
+    if (!existing) {
+      return new NextResponse("Not found", { status: 404 });
+    }
+
     const body = await req.json();
     const data: {
       name?: string;
@@ -99,12 +104,17 @@ export async function PATCH(
       data.active = body.active;
     }
 
+    let previousChatId: bigint | null = null;
+    let unlinking = false;
+
     if ("chat_id" in body) {
       const chatId = parseChatId(body.chat_id);
       if (chatId === undefined && body.chat_id !== null) {
         return new NextResponse("Invalid chat_id", { status: 400 });
       }
       data.chat_id = chatId ?? null;
+      previousChatId = existing.chat_id;
+      unlinking = data.chat_id === null && previousChatId !== null;
 
       if (data.chat_id !== null) {
         const taken = await prismadb.workers.findFirst({
@@ -130,6 +140,13 @@ export async function PATCH(
       where: { id },
       data,
     });
+
+    // Відвʼязка: прибираємо StaffBotUser, інакше sync/селектор знову підтягують ID
+    if (unlinking && previousChatId !== null) {
+      await prismadb.staffBotUser.deleteMany({
+        where: { chat_id: previousChatId },
+      });
+    }
 
     if (data.name && worker.chat_id !== null) {
       await prismadb.staffBotUser.updateMany({
@@ -162,7 +179,31 @@ export async function DELETE(
       return new NextResponse("Worker id is required", { status: 400 });
     }
 
-    await prismadb.workers.delete({ where: { id } });
+    const existing = await prismadb.workers.findUnique({ where: { id } });
+    if (!existing) {
+      return new NextResponse("Not found", { status: 404 });
+    }
+
+    // Знімаємо FK, щоб delete не падав мовчки / з 500
+    await prismadb.$transaction(async (tx) => {
+      await tx.vending_machines.updateMany({
+        where: { technicianId: id },
+        data: { technicianId: null },
+      });
+      await tx.tasks.updateMany({
+        where: { workerId: id },
+        data: { workerId: null },
+      });
+
+      if (existing.chat_id !== null) {
+        await tx.staffBotUser.deleteMany({
+          where: { chat_id: existing.chat_id },
+        });
+      }
+
+      await tx.workers.delete({ where: { id } });
+    });
+
     return NextResponse.json({ id });
   } catch (error) {
     const denied = accessErrorResponse(error);

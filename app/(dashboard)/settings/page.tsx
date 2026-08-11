@@ -8,7 +8,6 @@ import {
   listCabinetUsers,
   requireApprovedAccess,
 } from "@/lib/cabinet-access";
-import { syncStaffBotUsersToWorkers } from "@/lib/staff-bot-sync";
 import { SettingsUsersClient } from "./components/settings-users-client";
 import { SettingsWorkersClient } from "./components/settings-workers-client";
 
@@ -30,9 +29,8 @@ function staffLabel(u: {
 
 export default async function SettingsPage() {
   const access = await requireApprovedAccess();
-  // Підтягує тих, хто вже був у StaffBotUser, але ще не в workers
-  await syncStaffBotUsersToWorkers();
 
+  // Без auto-sync Staff→workers: після delete/unlink refresh більше не воскрешає користувача
   const [users, workers, staffUsers] = await Promise.all([
     listCabinetUsers(),
     prismadb.workers.findMany({ orderBy: { id: "desc" } }),
@@ -57,10 +55,24 @@ export default async function SettingsPage() {
     active: w.active,
   }));
 
-  const staffOptions = staffUsers.map((u) => ({
-    chat_id: u.chat_id.toString(),
-    label: staffLabel(u),
-  }));
+  const staffByChat = new Map<string, { chat_id: string; label: string }>();
+  for (const u of staffUsers) {
+    const key = u.chat_id.toString();
+    staffByChat.set(key, {
+      chat_id: key,
+      label: staffLabel(u),
+    });
+  }
+  for (const w of workers) {
+    if (w.chat_id === null) continue;
+    const key = w.chat_id.toString();
+    if (staffByChat.has(key)) continue;
+    staffByChat.set(key, {
+      chat_id: key,
+      label: w.name?.trim() ? `${w.name.trim()} · ${key}` : key,
+    });
+  }
+  const staffOptions = Array.from(staffByChat.values());
 
   return (
     <div className="flex-col">

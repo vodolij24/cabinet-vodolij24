@@ -7,15 +7,14 @@ export function telegramDisplayName(parts: {
   chatId: bigint | string;
 }): string {
   const name = [parts.firstName, parts.lastName].filter(Boolean).join(" ").trim();
-  if (name) return name;
+  if (name && name !== "unknown") return name;
   if (parts.username?.trim()) return `@${parts.username.trim()}`;
   return `Telegram ${parts.chatId.toString()}`;
 }
 
 /**
  * Після /start у staff-боті: гарантує рядок у workers з цим chat_id.
- * Імʼя з Telegram підставляється лише якщо працівник ще без нормального імені
- * або щойно створений.
+ * Імʼя з Telegram підставляється лише якщо працівник ще без нормального імені.
  */
 export async function ensureWorkerFromStaffBot(input: {
   chatId: bigint;
@@ -40,10 +39,17 @@ export async function ensureWorkerFromStaffBot(input: {
       existing.name.startsWith("Telegram ") ||
       existing.name === "unknown";
 
+    const data: { name?: string; active?: boolean } = {};
     if (needsName && displayName !== existing.name) {
+      data.name = displayName;
+    }
+    if (existing.active == null) {
+      data.active = true;
+    }
+    if (Object.keys(data).length > 0) {
       return prismadb.workers.update({
         where: { id: existing.id },
-        data: { name: displayName },
+        data,
       });
     }
     return existing;
@@ -61,28 +67,80 @@ export async function ensureWorkerFromStaffBot(input: {
   });
 }
 
-/** Підтягує старі StaffBotUser у workers (хто ще без chat_id-привʼязки). */
+export async function ensureStaffBotUserFromWorker(input: {
+  chatId: bigint;
+  name?: string | null;
+}) {
+  const existing = await prismadb.staffBotUser.findUnique({
+    where: { chat_id: input.chatId },
+  });
+  if (existing) return existing;
+
+  const firstName =
+    input.name?.trim() &&
+    !input.name.startsWith("Telegram ") &&
+    input.name !== "unknown"
+      ? input.name.trim()
+      : `Telegram ${input.chatId.toString()}`;
+
+  return prismadb.staffBotUser.create({
+    data: {
+      chat_id: input.chatId,
+      firstName,
+      lastName: null,
+      username: null,
+    },
+  });
+}
+
+/**
+ * Двосторонній sync:
+ * StaffBotUser → workers
+ * workers з chat_id → StaffBotUser (якщо бот писав лише в workers)
+ */
 export async function syncStaffBotUsersToWorkers() {
   const staff = await prismadb.staffBotUser.findMany({
     orderBy: { createdAt: "asc" },
   });
-  let created = 0;
-  let updated = 0;
+  let createdWorkers = 0;
 
   for (const u of staff) {
     const before = await prismadb.workers.findFirst({
       where: { chat_id: u.chat_id },
       select: { id: true },
     });
-    const worker = await ensureWorkerFromStaffBot({
+    await ensureWorkerFromStaffBot({
       chatId: u.chat_id,
       username: u.username,
       firstName: u.firstName,
       lastName: u.lastName,
     });
-    if (!before) created += 1;
-    else if (before.id === worker.id) updated += 1;
+    if (!before) createdWorkers += 1;
   }
 
-  return { created, linked: staff.length, updated };
+  const workersWithChat = await prismadb.workers.findMany({
+    where: { chat_id: { not: null } },
+    select: { chat_id: true, name: true },
+  });
+
+  let createdStaff = 0;
+  for (const w of workersWithChat) {
+    if (w.chat_id === null) continue;
+    const before = await prismadb.staffBotUser.findUnique({
+      where: { chat_id: w.chat_id },
+      select: { id: true },
+    });
+    await ensureStaffBotUserFromWorker({
+      chatId: w.chat_id,
+      name: w.name,
+    });
+    if (!before) createdStaff += 1;
+  }
+
+  return {
+    createdWorkers,
+    createdStaff,
+    staff: staff.length,
+    workersWithChat: workersWithChat.length,
+  };
 }
