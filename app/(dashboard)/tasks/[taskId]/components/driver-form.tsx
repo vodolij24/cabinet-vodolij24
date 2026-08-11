@@ -38,7 +38,7 @@ const formSchema = z
   .object({
     title: z.string().min(1, "Назва обовʼязкова"),
     description: z.string(),
-    baseLocation: z.string().min(1, "База (локація) обовʼязкова"),
+    baseLocation: z.string(),
     dueAt: z.string(),
     type: z.enum(["operational", "financial"]),
     schedule: z.enum(["once", "monthly"]),
@@ -51,6 +51,15 @@ const formSchema = z
     assignRole: z.string(),
   })
   .superRefine((data, ctx) => {
+    const hasDevice = data.deviceId && data.deviceId !== "none";
+    if (!hasDevice && !data.baseLocation.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "База (локація) обовʼязкова без апарату",
+        path: ["baseLocation"],
+      });
+    }
+
     if (data.salaryDeduction.trim()) {
       if (!/^\d+$/.test(data.salaryDeduction.trim())) {
         ctx.addIssue({
@@ -95,6 +104,12 @@ type TaskFormValues = z.infer<typeof formSchema>;
 interface TaskFormProps {
   initialData: tasks | null;
   workers: workers[];
+  machines: {
+    id: number;
+    name: string | null;
+    location: string;
+    technicianId: number | null;
+  }[];
 }
 
 function toDateInputValue(d: Date | null | undefined) {
@@ -107,9 +122,21 @@ function toDateInputValue(d: Date | null | undefined) {
   return `${y}-${m}-${day}`;
 }
 
+function machineLabel(m: {
+  id: number;
+  name: string | null;
+  location: string;
+}) {
+  const parts = [`№${m.id}`];
+  if (m.name?.trim()) parts.push(m.name.trim());
+  if (m.location?.trim()) parts.push(m.location.trim());
+  return parts.join(" · ");
+}
+
 export const DriversForm: React.FC<TaskFormProps> = ({
   initialData,
   workers,
+  machines,
 }) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -137,7 +164,9 @@ export const DriversForm: React.FC<TaskFormProps> = ({
             initialData.salaryDeduction != null
               ? String(initialData.salaryDeduction)
               : "",
-          deviceId: initialData.deviceId ? String(initialData.deviceId) : "",
+          deviceId: initialData.deviceId
+            ? String(initialData.deviceId)
+            : "none",
           priority: initialData.priority || "medium",
           assignMode: "one",
           workerId: String(initialData.workerId || ""),
@@ -154,7 +183,7 @@ export const DriversForm: React.FC<TaskFormProps> = ({
           type: "operational",
           schedule: "once",
           salaryDeduction: "",
-          deviceId: "",
+          deviceId: "none",
           priority: "medium",
           assignMode: "one",
           workerId: "",
@@ -166,11 +195,45 @@ export const DriversForm: React.FC<TaskFormProps> = ({
   const taskType = form.watch("type");
   const assignMode = form.watch("assignMode");
   const workerIds = form.watch("workerIds");
+  const workerId = form.watch("workerId");
+  const deviceId = form.watch("deviceId");
+  const hasSelectedDevice = Boolean(deviceId && deviceId !== "none");
 
   const activeWorkers = useMemo(
     () => workers.filter((w) => w.active !== false),
     [workers]
   );
+
+  const selectedTechnicianIds = useMemo(() => {
+    if (isEdit || assignMode === "one") {
+      const id = parseInt(workerId || "", 10);
+      return Number.isFinite(id) ? new Set([id]) : new Set<number>();
+    }
+    if (assignMode === "many") {
+      return new Set(
+        workerIds
+          .map((id) => parseInt(id, 10))
+          .filter((id) => Number.isFinite(id))
+      );
+    }
+    return new Set<number>();
+  }, [isEdit, assignMode, workerId, workerIds]);
+
+  const sortedMachines = useMemo(() => {
+    const assigned: typeof machines = [];
+    const rest: typeof machines = [];
+    for (const m of machines) {
+      if (
+        m.technicianId != null &&
+        selectedTechnicianIds.has(m.technicianId)
+      ) {
+        assigned.push(m);
+      } else {
+        rest.push(m);
+      }
+    }
+    return [...assigned, ...rest];
+  }, [machines, selectedTechnicianIds]);
 
   const onSubmit = async (data: TaskFormValues) => {
     try {
@@ -178,14 +241,17 @@ export const DriversForm: React.FC<TaskFormProps> = ({
       const payload: Record<string, unknown> = {
         title: data.title,
         description: data.description,
-        baseLocation: data.baseLocation,
+        baseLocation: data.baseLocation.trim() || null,
         dueAt: data.dueAt || null,
         type: data.type,
         schedule: data.type === "financial" ? data.schedule : null,
         salaryDeduction: data.salaryDeduction.trim()
           ? parseInt(data.salaryDeduction.trim(), 10)
           : null,
-        deviceId: data.deviceId ? parseInt(data.deviceId, 10) : null,
+        deviceId:
+          data.deviceId && data.deviceId !== "none"
+            ? parseInt(data.deviceId, 10)
+            : null,
         priority: data.priority,
       };
 
@@ -292,11 +358,18 @@ export const DriversForm: React.FC<TaskFormProps> = ({
               name="baseLocation"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>База (локація)</FormLabel>
+                  <FormLabel>
+                    База (локація)
+                    {hasSelectedDevice ? " (опційно)" : ""}
+                  </FormLabel>
                   <FormControl>
                     <Input
                       disabled={loading}
-                      placeholder="Локація / база"
+                      placeholder={
+                        hasSelectedDevice
+                          ? "Опційно, якщо обрано апарат"
+                          : "Локація / база"
+                      }
                       {...field}
                     />
                   </FormControl>
@@ -385,6 +458,45 @@ export const DriversForm: React.FC<TaskFormProps> = ({
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="deviceId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Апарат (опційно)</FormLabel>
+                  <Select
+                    disabled={loading}
+                    onValueChange={field.onChange}
+                    value={field.value || "none"}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Без апарату" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Без апарату</SelectItem>
+                      {sortedMachines.map((m) => {
+                        const assigned =
+                          m.technicianId != null &&
+                          selectedTechnicianIds.has(m.technicianId);
+                        return (
+                          <SelectItem
+                            key={m.id}
+                            value={String(m.id)}
+                            className={assigned ? "font-bold" : undefined}
+                          >
+                            {machineLabel(m)}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {taskType === "financial" ? (
               <FormField
                 control={form.control}
@@ -414,26 +526,7 @@ export const DriversForm: React.FC<TaskFormProps> = ({
                   </FormItem>
                 )}
               />
-            ) : (
-              <FormField
-                control={form.control}
-                name="deviceId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Апарат (опційно)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        disabled={loading}
-                        placeholder="Номер апарату"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            ) : null}
 
             {!isEdit ? (
               <FormField

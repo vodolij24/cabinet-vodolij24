@@ -1,12 +1,13 @@
 import prismadb from "@/lib/prismadb";
 import { digitsOnlyPhone } from "@/lib/phone";
 import {
+  isManagerAckOnlyTask,
   isManagerReviewableStatus,
   managerDecisionLabel,
   taskStatusLabel,
   taskTypeLabel,
 } from "@/lib/task-fields";
-import { parsePhotoUrls } from "@/lib/task-photos";
+import { parsePhotoUrls } from "@/lib/photo-urls";
 
 export type ManagerPublicTask = {
   id: number;
@@ -19,6 +20,8 @@ export type ManagerPublicTask = {
   status: string | null;
   statusLabel: string;
   reviewable: boolean;
+  /** Лише кнопка «Ознайомлений» (відхилення з утриманням) */
+  ackOnly: boolean;
   technicianName: string | null;
   technicianComment: string | null;
   rejectReason: string | null;
@@ -98,6 +101,7 @@ function mapManagerTask(t: {
     status: t.status,
     statusLabel: taskStatusLabel(t.status),
     reviewable: isManagerReviewableStatus(t.status),
+    ackOnly: isManagerAckOnlyTask(t),
     technicianName: t.worker?.name || null,
     technicianComment: t.technicianComment,
     rejectReason: t.rejectReason,
@@ -129,6 +133,7 @@ export async function getManagerPublicPage(
             in: [
               "awaiting_manager_confirm",
               "awaiting_manager_decision",
+              "awaiting_manager_ack",
             ],
           },
         },

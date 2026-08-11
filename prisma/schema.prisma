@@ -111,8 +111,72 @@ model workers {
   dialoguestatus String?  @default("") @db.VarChar(255)
   tasks          tasks[]
   machines       vending_machines[]
+  monthlyFinance TechnicianMonthlyFinance[]
+  expenseEntries TechnicianExpenseEntry[]
+  manualBonuses  TechnicianManualBonus[]
 
   @@index([role])
+}
+
+/// Ручна премія: сума · причина · автор · дата
+model TechnicianManualBonus {
+  id         Int      @id @default(autoincrement())
+  workerId   Int
+  amount     Int
+  reason     String
+  /// Імʼя автора (керівник / фінансист)
+  authorName String   @db.VarChar(255)
+  /// Clerk user id автора
+  authorId   String?  @db.VarChar(255)
+  /// Дата нарахування
+  bonusDate  DateTime @db.Date
+  createdAt  DateTime @default(now())
+  worker     workers  @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId])
+  @@index([bonusDate])
+}
+
+/// Місячний агрегат (legacy / опційний snapshot); баланс рахується з TechnicianExpenseEntry
+model TechnicianMonthlyFinance {
+  id           Int       @id @default(autoincrement())
+  workerId     Int
+  /// YYYY-MM
+  periodKey    String    @db.VarChar(16)
+  fuelAmount   Int       @default(0)
+  fuelComment  String?
+  otherAmount  Int       @default(0)
+  otherComment String?
+  /// JSON-масив URL фото до витрат
+  photoUrls    String?
+  submittedAt  DateTime? @db.Timestamptz(6)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  worker       workers   @relation(fields: [workerId], references: [id])
+
+  @@unique([workerId, periodKey])
+  @@index([periodKey])
+  @@index([workerId])
+}
+
+/// Незмінна транзакція витрати техніка: fuel | other
+model TechnicianExpenseEntry {
+  id         Int      @id @default(autoincrement())
+  workerId   Int
+  /// YYYY-MM
+  periodKey  String   @db.VarChar(16)
+  /// fuel | other
+  type       String   @db.VarChar(16)
+  amount     Int
+  comment    String?
+  /// JSON-масив URL фото
+  photoUrls  String?
+  createdAt  DateTime @default(now())
+  worker     workers  @relation(fields: [workerId], references: [id])
+
+  @@index([workerId, periodKey])
+  @@index([periodKey])
+  @@index([type])
 }
 
 /// Користувачі другого (staff) бота після /start
@@ -154,14 +218,14 @@ model tasks {
   photoUrls         String?
   /// accepted | rejected — рішення керівника
   managerDecision   String?   @db.VarChar(32)
-  /// Чи застосовано утримання після рішення керівника
+  /// Чи застосовано утримання (після рішення керівника або одразу при reject з утриманням)
   deductionApplied  Boolean?  @default(false)
   /// Коментар керівника
   managerComment    String?
   reviewedAt        DateTime? @db.Timestamptz(6)
   /// id workers (керівник, що прийняв рішення)
   reviewedById      Int?
-  /// todo | awaiting_manager_confirm | awaiting_manager_decision | done | ...
+  /// todo | awaiting_manager_confirm | awaiting_manager_decision | awaiting_manager_ack | done | ...
   status          String?   @default("todo")
   priority        String?   @default("medium")
   deviceId        Int?

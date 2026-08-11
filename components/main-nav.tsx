@@ -38,6 +38,11 @@ export function MainNav({
       active: pathname === `/tasks`,
     },
     {
+      href: `/finance`,
+      label: "Фінанси",
+      active: pathname === `/finance` || pathname.startsWith(`/finance/`),
+    },
+    {
       href: `/machines`,
       label: "Автомати",
       active: pathname === `/machines` || pathname.startsWith(`/machines/`),

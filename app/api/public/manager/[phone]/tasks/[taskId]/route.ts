@@ -4,6 +4,7 @@ import prismadb from "@/lib/prismadb";
 import { isPhoneRouteParam } from "@/lib/phone";
 import { findManagerByPhoneDigits } from "@/lib/manager-public";
 import {
+  isManagerAckOnlyTask,
   isManagerReviewableStatus,
   MANAGER_DECISION,
   TASK_STATUS,
@@ -42,6 +43,36 @@ export async function POST(
     const action = typeof body?.action === "string" ? body.action : null;
     const comment =
       typeof body?.comment === "string" ? body.comment.trim() : "";
+
+    const ackOnly = isManagerAckOnlyTask(task);
+
+    if (ackOnly) {
+      if (action !== "acknowledge") {
+        return new NextResponse(
+          "Для відхиленої задачі з утриманням доступне лише ознайомлення",
+          { status: 400 }
+        );
+      }
+
+      const updated = await prismadb.tasks.update({
+        where: { id },
+        data: {
+          status: TASK_STATUS.done,
+          managerDecision: MANAGER_DECISION.acknowledged,
+          deductionApplied: true,
+          managerComment: comment || null,
+          reviewedAt: new Date(),
+          reviewedById: manager.id,
+        },
+      });
+
+      return NextResponse.json({
+        id: updated.id,
+        status: updated.status,
+        managerDecision: updated.managerDecision,
+        deductionApplied: updated.deductionApplied,
+      });
+    }
 
     if (action !== "accept" && action !== "reject") {
       return new NextResponse("Invalid action", { status: 400 });

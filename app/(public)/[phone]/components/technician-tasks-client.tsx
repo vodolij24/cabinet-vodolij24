@@ -56,6 +56,14 @@ function TaskCard({ task }: { task: TechnicianPublicTask }) {
       <p className="mt-2 text-xs font-medium text-sky-800 dark:text-sky-300">
         {task.statusLabel}
       </p>
+      {task.status === "awaiting_manager_ack" &&
+      task.salaryDeduction != null &&
+      task.salaryDeduction > 0 ? (
+        <p className="mt-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+          Утримання застосовано (
+          {task.salaryDeduction.toLocaleString("uk-UA")} грн)
+        </p>
+      ) : null}
       {task.technicianComment ? (
         <p className="mt-1 text-xs text-slate-500">
           Коментар: {task.technicianComment}
@@ -138,10 +146,14 @@ export function TechnicianTasksClient({
         `/api/public/technician/${phone}/tasks/${task.id}`,
         form
       );
+      const hasDeduction =
+        task.salaryDeduction != null && task.salaryDeduction > 0;
       toast.success(
         action === "complete"
           ? "Надіслано на підтвердження керівника"
-          : "Відхилення надіслано керівнику"
+          : hasDeduction
+            ? "Відхилено · утримання застосовано, очікує ознайомлення керівника"
+            : "Відхилення надіслано керівнику"
       );
       setTaskMode(task.id, null);
       setText((t) => ({ ...t, [task.id]: "" }));

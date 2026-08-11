@@ -127,20 +127,36 @@ export async function POST(
         photoUrls = saved.urls;
       }
 
+      const hasDeduction =
+        task.salaryDeduction != null && task.salaryDeduction > 0;
+
+      // З утриманням: застосовуємо одразу, керівник лише ознайомлюється
       const updated = await prismadb.tasks.update({
         where: { id },
-        data: {
-          status: TASK_STATUS.awaiting_manager_decision,
-          rejectReason: reason,
-          technicianComment: null,
-          photoUrls: photoUrls.length ? JSON.stringify(photoUrls) : null,
-          completedAt: null,
-        },
+        data: hasDeduction
+          ? {
+              status: TASK_STATUS.awaiting_manager_ack,
+              rejectReason: reason,
+              technicianComment: null,
+              photoUrls: photoUrls.length ? JSON.stringify(photoUrls) : null,
+              deductionApplied: true,
+              // Фіксуємо момент застосування утримання (до ознайомлення керівника)
+              completedAt: new Date(),
+            }
+          : {
+              status: TASK_STATUS.awaiting_manager_decision,
+              rejectReason: reason,
+              technicianComment: null,
+              photoUrls: photoUrls.length ? JSON.stringify(photoUrls) : null,
+              deductionApplied: false,
+              completedAt: null,
+            },
       });
 
       return NextResponse.json({
         id: updated.id,
         status: updated.status,
+        deductionApplied: updated.deductionApplied,
         photoUrls,
       });
     }

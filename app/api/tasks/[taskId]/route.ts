@@ -94,12 +94,6 @@ export async function PATCH(
       return new NextResponse("Назва обовʼязкова", { status: 400 });
     }
 
-    const baseLocation =
-      typeof body.baseLocation === "string" ? body.baseLocation.trim() : "";
-    if (!baseLocation) {
-      return new NextResponse("База (локація) обовʼязкова", { status: 400 });
-    }
-
     const type = isTaskType(body.type) ? body.type : "operational";
     let schedule: string | null = null;
     if (type === "financial") {
@@ -135,6 +129,16 @@ export async function PATCH(
         return new NextResponse("Invalid deviceId", { status: 400 });
       }
       deviceId = n === 0 ? null : n;
+    }
+
+    const baseLocation =
+      typeof body.baseLocation === "string" && body.baseLocation.trim()
+        ? body.baseLocation.trim()
+        : null;
+    if (!baseLocation && !deviceId) {
+      return new NextResponse("База (локація) обовʼязкова без апарату", {
+        status: 400,
+      });
     }
 
     const task = await prismadb.tasks.update({

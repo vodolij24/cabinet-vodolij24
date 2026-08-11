@@ -67,6 +67,15 @@ function TaskCard({ task }: { task: ManagerPublicTask }) {
           Причина відхилення: {task.rejectReason}
         </p>
       ) : null}
+      {task.ackOnly && task.reviewable ? (
+        <p className="mt-1 text-sm font-medium text-amber-800 dark:text-amber-300">
+          Утримання вже застосовано
+          {task.salaryDeduction != null
+            ? ` (${task.salaryDeduction.toLocaleString("uk-UA")} грн)`
+            : ""}
+          . Потрібно лише ознайомлення.
+        </p>
+      ) : null}
       <TaskPhotos urls={task.photoUrls} />
       {!task.reviewable && task.managerDecision ? (
         <div className="mt-2 space-y-1 text-xs text-slate-500">
@@ -95,14 +104,14 @@ export function ManagerTasksClient({
   const router = useRouter();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
-  const [mode, setMode] = useState<Record<number, "accept" | "reject" | null>>(
-    {}
-  );
+  const [mode, setMode] = useState<
+    Record<number, "accept" | "reject" | "acknowledge" | null>
+  >({});
   const [comment, setComment] = useState<Record<number, string>>({});
 
   const submit = async (
     task: ManagerPublicTask,
-    action: "accept" | "reject"
+    action: "accept" | "reject" | "acknowledge"
   ) => {
     try {
       setBusyId(task.id);
@@ -111,9 +120,11 @@ export function ManagerTasksClient({
         comment: (comment[task.id] || "").trim() || undefined,
       });
       toast.success(
-        action === "accept"
-          ? "Прийнято · задачу закрито без утримання"
-          : "Не прийнято · задачу закрито з утриманням"
+        action === "acknowledge"
+          ? "Ознайомлено · задачу закрито"
+          : action === "accept"
+            ? "Прийнято · задачу закрито без утримання"
+            : "Не прийнято · задачу закрито з утриманням"
       );
       setMode((m) => ({ ...m, [task.id]: null }));
       setComment((c) => ({ ...c, [task.id]: "" }));
@@ -151,7 +162,58 @@ export function ManagerTasksClient({
               return (
                 <li key={task.id} className="space-y-3 px-4 py-4">
                   <TaskCard task={task} />
-                  {!currentMode ? (
+                  {task.ackOnly ? (
+                    !currentMode ? (
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={() =>
+                          setMode((m) => ({
+                            ...m,
+                            [task.id]: "acknowledge",
+                          }))
+                        }
+                      >
+                        Ознайомлений
+                      </Button>
+                    ) : (
+                      <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                        <p className="text-sm font-medium">
+                          Підтвердити ознайомлення (утримання вже в балансі)
+                        </p>
+                        <Input
+                          value={comment[task.id] || ""}
+                          disabled={busy}
+                          placeholder="Коментар керівника (опційно)"
+                          onChange={(e) =>
+                            setComment((c) => ({
+                              ...c,
+                              [task.id]: e.target.value,
+                            }))
+                          }
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => submit(task, "acknowledge")}
+                          >
+                            Підтвердити
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() =>
+                              setMode((m) => ({ ...m, [task.id]: null }))
+                            }
+                          >
+                            Скасувати
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  ) : !currentMode ? (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
@@ -195,7 +257,12 @@ export function ManagerTasksClient({
                         <Button
                           size="sm"
                           disabled={busy}
-                          onClick={() => submit(task, currentMode)}
+                          onClick={() =>
+                            submit(
+                              task,
+                              currentMode === "accept" ? "accept" : "reject"
+                            )
+                          }
                         >
                           Підтвердити
                         </Button>

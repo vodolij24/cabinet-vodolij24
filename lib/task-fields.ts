@@ -62,12 +62,15 @@ export const TASK_STATUS = {
   todo: "todo",
   awaiting_manager_confirm: "awaiting_manager_confirm",
   awaiting_manager_decision: "awaiting_manager_decision",
+  /** Технік відхилив задачу з утриманням — утримання вже застосовано, керівник лише ознайомлюється */
+  awaiting_manager_ack: "awaiting_manager_ack",
   done: "done",
 } as const;
 
 export const MANAGER_DECISION = {
   accepted: "accepted",
   rejected: "rejected",
+  acknowledged: "acknowledged",
 } as const;
 
 export function taskStatusLabel(status: string | null | undefined): string {
@@ -76,6 +79,8 @@ export function taskStatusLabel(status: string | null | undefined): string {
       return "Очікує підтвердження керівника";
     case "awaiting_manager_decision":
       return "Очікує рішення керівника";
+    case "awaiting_manager_ack":
+      return "Очікує ознайомлення керівника";
     case "done":
       return "Закрито";
     case "in_progress":
@@ -98,6 +103,11 @@ export function managerDecisionLabel(
       ? "Не прийнято · утримання застосовано"
       : "Не прийнято";
   }
+  if (decision === MANAGER_DECISION.acknowledged) {
+    return deductionApplied
+      ? "Ознайомлено · утримання застосовано"
+      : "Ознайомлено";
+  }
   return "—";
 }
 
@@ -112,6 +122,24 @@ export function isManagerReviewableStatus(
 ): boolean {
   return (
     status === TASK_STATUS.awaiting_manager_confirm ||
-    status === TASK_STATUS.awaiting_manager_decision
+    status === TASK_STATUS.awaiting_manager_decision ||
+    status === TASK_STATUS.awaiting_manager_ack
+  );
+}
+
+/** Відхилення техніком із утриманням — лише «Ознайомлений» */
+export function isManagerAckOnlyTask(task: {
+  status: string | null | undefined;
+  salaryDeduction?: number | null;
+  rejectReason?: string | null;
+  deductionApplied?: boolean | null;
+}): boolean {
+  return (
+    task.status === TASK_STATUS.awaiting_manager_ack ||
+    (task.status === TASK_STATUS.awaiting_manager_decision &&
+      Boolean(task.rejectReason) &&
+      task.salaryDeduction != null &&
+      task.salaryDeduction > 0 &&
+      Boolean(task.deductionApplied))
   );
 }

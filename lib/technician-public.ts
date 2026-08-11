@@ -8,7 +8,7 @@ import {
   taskStatusLabel,
   taskTypeLabel,
 } from "@/lib/task-fields";
-import { parsePhotoUrls } from "@/lib/task-photos";
+import { parsePhotoUrls } from "@/lib/photo-urls";
 
 export type TechnicianPublicMachine = {
   id: number;

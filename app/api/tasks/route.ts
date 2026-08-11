@@ -118,8 +118,8 @@ function parseSharedFields(body: Record<string, unknown>) {
   if (!title) {
     return { error: "Назва обовʼязкова" } as const;
   }
-  if (!baseLocation) {
-    return { error: "База (локація) обовʼязкова" } as const;
+  if (!baseLocation && !deviceId) {
+    return { error: "База (локація) обовʼязкова без апарату" } as const;
   }
 
   return {

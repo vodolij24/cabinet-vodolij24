@@ -7,8 +7,13 @@ import {
   getManagerPublicPage,
 } from "@/lib/manager-public";
 import { getTechnicianPublicPage } from "@/lib/technician-public";
+import {
+  getTechnicianFinanceSnapshot,
+} from "@/lib/finance-month";
+import { currentPeriodKey } from "@/lib/task-fields";
 import { ManagerTasksClient } from "./components/manager-tasks-client";
 import { TechnicianTasksClient } from "./components/technician-tasks-client";
+import { TechnicianFinanceClient } from "./components/technician-finance-client";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +72,12 @@ async function TechnicianPage({ phone }: { phone: string }) {
   const { technician, machines, tasks, totalWaterLitersMonth, monthLabel } =
     data;
 
+  const periodKey = currentPeriodKey();
+  const finance = await getTechnicianFinanceSnapshot(
+    technician.id,
+    periodKey
+  );
+
   const activeTasks = tasks.filter((t) => t.actionable);
   const archiveTasks = tasks.filter((t) => !t.actionable);
 
@@ -106,6 +117,16 @@ async function TechnicianPage({ phone }: { phone: string }) {
           Автоматів: {machines.length}
         </p>
       </section>
+
+      {finance ? (
+        <TechnicianFinanceClient
+          phone={phone}
+          periodKey={periodKey}
+          monthLabel={monthLabel}
+          initial={finance}
+          section="main"
+        />
+      ) : null}
 
       <section className="mb-6 overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="border-b border-sky-50 bg-sky-50/60 px-4 py-3 text-sm font-medium text-sky-900 dark:border-slate-800 dark:bg-slate-900/80 dark:text-sky-200">
@@ -154,6 +175,16 @@ async function TechnicianPage({ phone }: { phone: string }) {
         activeTasks={activeTasks}
         archiveTasks={archiveTasks}
       />
+
+      {finance ? (
+        <TechnicianFinanceClient
+          phone={phone}
+          periodKey={periodKey}
+          monthLabel={monthLabel}
+          initial={finance}
+          section="archive"
+        />
+      ) : null}
     </main>
   );
 }

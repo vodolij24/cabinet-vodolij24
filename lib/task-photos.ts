@@ -1,7 +1,13 @@
+import "server-only";
+
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
 import { put } from "@vercel/blob";
+
+import { parsePhotoUrls } from "@/lib/photo-urls";
+
+export { parsePhotoUrls };
 
 const ALLOWED = new Set([
   "image/jpeg",
@@ -30,37 +36,30 @@ function blobToken(): string | undefined {
   return token || undefined;
 }
 
-/** На Vercel завжди Blob; локально — Blob якщо є токен, інакше диск. */
 function shouldUseBlob(): boolean {
   return isVercelRuntime() || Boolean(blobToken());
 }
 
 async function saveOneLocal(
-  taskId: number,
+  folder: string,
   file: File,
   buf: Buffer
 ): Promise<string> {
-  const dir = path.join(
-    process.cwd(),
-    "public",
-    "uploads",
-    "tasks",
-    String(taskId)
-  );
+  const dir = path.join(process.cwd(), "public", "uploads", ...folder.split("/"));
   await mkdir(dir, { recursive: true });
   const name = `${Date.now()}-${randomBytes(4).toString("hex")}.${extFor(file.type)}`;
   await writeFile(path.join(dir, name), buf);
-  return `/uploads/tasks/${taskId}/${name}`;
+  return `/uploads/${folder}/${name}`.replace(/\/+/g, "/");
 }
 
 async function saveOneBlob(
-  taskId: number,
+  folder: string,
   file: File,
   buf: Buffer,
   token: string
 ): Promise<string> {
   const name = `${Date.now()}-${randomBytes(4).toString("hex")}.${extFor(file.type)}`;
-  const pathname = `tasks/${taskId}/${name}`;
+  const pathname = `${folder}/${name}`;
   const blob = await put(pathname, buf, {
     access: "public",
     contentType: file.type || "image/jpeg",
@@ -71,14 +70,18 @@ async function saveOneBlob(
 }
 
 /**
- * Зберігає фотозвіт:
- * - Vercel / є BLOB_READ_WRITE_TOKEN → Vercel Blob
- * - локально без токена → public/uploads/tasks/{taskId}/
+ * Зберігає фото у uploads/{folder}/ або Vercel Blob.
+ * folder: напр. "tasks/12" або "finance/4/2026-08"
  */
-export async function saveTaskPhotoReport(
-  taskId: number,
+export async function savePhotoReport(
+  folder: string,
   files: File[]
 ): Promise<{ urls: string[] } | { error: string }> {
+  const cleanFolder = folder.replace(/^\/+|\/+$/g, "").replace(/\.\./g, "");
+  if (!cleanFolder) {
+    return { error: "Некоректний шлях збереження" };
+  }
+
   if (files.length > MAX_FILES) {
     return { error: `Максимум ${MAX_FILES} фото` };
   }
@@ -88,7 +91,7 @@ export async function saveTaskPhotoReport(
 
   if (useBlob && !token) {
     console.error(
-      "[TASK_PHOTO_SAVE] BLOB_READ_WRITE_TOKEN missing on Vercel runtime"
+      "[PHOTO_SAVE] BLOB_READ_WRITE_TOKEN missing on Vercel runtime"
     );
     return {
       error:
@@ -112,11 +115,11 @@ export async function saveTaskPhotoReport(
     try {
       const url =
         useBlob && token
-          ? await saveOneBlob(taskId, file, buf, token)
-          : await saveOneLocal(taskId, file, buf);
+          ? await saveOneBlob(cleanFolder, file, buf, token)
+          : await saveOneLocal(cleanFolder, file, buf);
       urls.push(url);
     } catch (error) {
-      console.error("[TASK_PHOTO_SAVE]", error);
+      console.error("[PHOTO_SAVE]", error);
       return { error: "Не вдалося зберегти фото" };
     }
   }
@@ -124,14 +127,9 @@ export async function saveTaskPhotoReport(
   return { urls };
 }
 
-export function parsePhotoUrls(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((u) => typeof u === "string")
-      : [];
-  } catch {
-    return [];
-  }
+export async function saveTaskPhotoReport(
+  taskId: number,
+  files: File[]
+): Promise<{ urls: string[] } | { error: string }> {
+  return savePhotoReport(`tasks/${taskId}`, files);
 }

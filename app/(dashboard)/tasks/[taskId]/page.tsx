@@ -17,14 +17,29 @@ const TaskPage = async ({
 
   const workers = await prismadb.workers.findMany({
     where: {
-      active: true,
+      OR: [{ active: true }, { active: null }],
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const machines = await prismadb.vending_machines.findMany({
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      name: true,
+      location: true,
+      technicianId: true,
     },
   });
 
   return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <DriversForm initialData={tasks} workers={workers} />
+        <DriversForm
+          initialData={tasks}
+          workers={workers}
+          machines={machines}
+        />
       </div>
     </div>
   );
