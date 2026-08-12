@@ -328,6 +328,12 @@ model vending_machines {
   alerts                String?
   filter_life_remaining Int?
   water_quality_status  enum_vending_machines_water_quality_status? @default(good)
+  /// Останні метрики з Soliton (кеш)
+  solitonFilterSpeed    Float?
+  solitonTds            Float?
+  solitonQualityValue   Float?
+  solitonMetricsDate    String?                                     @db.VarChar(32)
+  solitonMetricsAt      DateTime?                                   @db.Timestamptz(6)
   createdAt             DateTime                                    @default(now())
   updatedAt             DateTime
 
