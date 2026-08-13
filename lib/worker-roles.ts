@@ -10,6 +10,13 @@ export type WorkerRole = (typeof WORKER_ROLES)[number]["value"];
 
 export const WORKER_ROLE_VALUES = WORKER_ROLES.map((r) => r.value);
 
+/** Ролі з персональною phone-сторінкою /{телефон} */
+export const PUBLIC_PAGE_ROLES = [
+  "technician",
+  "manager",
+  "cashier",
+] as const satisfies readonly WorkerRole[];
+
 export function isWorkerRole(value: unknown): value is WorkerRole {
   return (
     typeof value === "string" &&

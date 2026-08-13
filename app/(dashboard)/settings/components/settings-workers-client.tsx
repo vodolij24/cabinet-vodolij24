@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { WORKER_ROLES } from "@/lib/worker-roles";
+import { PUBLIC_PAGE_ROLES, WORKER_ROLES } from "@/lib/worker-roles";
 import { digitsOnlyPhone } from "@/lib/phone";
 
 export type SettingsWorkerRow = {
@@ -245,8 +245,10 @@ export function SettingsWorkersClient({
                           setDraft(worker.id, { name: e.target.value })
                         }
                       />
-                      {(worker.role === "technician" ||
-                        worker.role === "manager") &&
+                      {worker.role &&
+                      (PUBLIC_PAGE_ROLES as readonly string[]).includes(
+                        worker.role
+                      ) &&
                       digitsOnlyPhone(worker.phone).length >= 10 ? (
                         <a
                           className="mt-1 inline-block text-xs text-sky-600 hover:underline"

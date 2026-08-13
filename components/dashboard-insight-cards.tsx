@@ -158,3 +158,93 @@ export function GoalsCard({ goals }: { goals: GoalProgress }) {
     </Card>
   );
 }
+
+function moneyUa(n: number) {
+  return `${n.toLocaleString("uk-UA", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} грн`;
+}
+
+export function CashCard({
+  total,
+  inMachines,
+  withTechnicians,
+  machinesWithCash,
+  machinesCount,
+  technicians,
+}: {
+  total: number;
+  inMachines: number;
+  withTechnicians: number;
+  machinesWithCash: number;
+  machinesCount: number;
+  technicians: Array<{
+    technicianId: number | null;
+    name: string;
+    collections: number;
+    amount: number;
+  }>;
+}) {
+  return (
+    <Card className="xl:col-span-2">
+      <CardHeader>
+        <CardTitle className="text-base">Готівка на руках</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Кеш в апаратах + нездані інкасації техніків
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <p className="text-sm text-muted-foreground">Разом</p>
+          <p className="text-3xl font-semibold tabular-nums tracking-tight">
+            {moneyUa(total)}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-muted-foreground">Кеш в апаратах</p>
+            <p className="font-semibold tabular-nums">{moneyUa(inMachines)}</p>
+            <p className="text-xs text-muted-foreground">
+              {machinesWithCash} з {machinesCount} апаратів
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">На руках у техніків</p>
+            <p className="font-semibold tabular-nums">
+              {moneyUa(withTechnicians)}
+            </p>
+            <p className="text-xs text-muted-foreground">нездані інкасації</p>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-medium">По техніках</p>
+          {technicians.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Немає незданих інкасацій</p>
+          ) : (
+            <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
+              {technicians.map((t) => (
+                <li
+                  key={t.technicianId ?? "none"}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <div>
+                    <div className="font-medium">{t.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {t.collections.toLocaleString("uk-UA")} незданих
+                    </div>
+                  </div>
+                  <div className="text-right font-semibold tabular-nums">
+                    {moneyUa(t.amount)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

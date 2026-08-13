@@ -114,6 +114,7 @@ model workers {
   monthlyFinance TechnicianMonthlyFinance[]
   expenseEntries TechnicianExpenseEntry[]
   manualBonuses  TechnicianManualBonus[]
+  collections    collections[]
 
   @@index([role])
 }
@@ -265,18 +266,71 @@ model user_achievements {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model collections {
-  id            Int      @id @default(autoincrement())
-  date          DateTime @db.Timestamptz(6)
-  sum_banknotes Decimal  @default(0) @db.Decimal(10, 2)
-  sum_coins     Decimal  @default(0) @db.Decimal(10, 2)
-  total_sum     Decimal  @default(0) @db.Decimal(10, 2)
-  note          String?
-  machine       String
-  collector_id  String?  @db.VarChar(50)
-  collector_nik String?  @db.VarChar(100)
-  device_id     Int?
-  created_at    DateTime @db.Timestamptz(6)
-  updated_at    DateTime @db.Timestamptz(6)
+  id              Int      @id @default(autoincrement())
+  date            DateTime @db.Timestamptz(6)
+  count_banknotes Int      @default(0)
+  sum_banknotes   Decimal  @default(0) @db.Decimal(10, 2)
+  count_coins     Int      @default(0)
+  sum_coins       Decimal  @default(0) @db.Decimal(10, 2)
+  total_sum       Decimal  @default(0) @db.Decimal(10, 2)
+  note            String?
+  machine         String
+  collector_id    String?  @db.VarChar(50)
+  collector_nik   String?  @db.VarChar(100)
+  device_id       Int?
+  /// workers.id — snapshot відповідального техніка автомата на момент інкасації
+  technicianId    Int?
+  technicianWorker workers? @relation(fields: [technicianId], references: [id])
+  /// CollectionHandover.id — здача касиру; одна інкасація лише в одній здачі
+  handoverId      Int?
+  /// Фактично отримано касиром при перерахунку
+  actualReceived  Decimal? @db.Decimal(10, 2)
+  /// done | missing
+  recountStatus   String?  @db.VarChar(16)
+  created_at      DateTime @db.Timestamptz(6)
+  updated_at      DateTime @db.Timestamptz(6)
+
+  @@index([device_id])
+  @@index([technicianId])
+  @@index([date])
+  @@index([handoverId])
+}
+
+/// Здача інкасації техніком касиру
+model CollectionHandover {
+  id               Int      @id @default(autoincrement())
+  technicianId     Int      @map("technician_id")
+  cashierId        Int      @map("cashier_id")
+  claimedPackages  Int      @map("claimed_packages")
+  receivedPackages Int      @map("received_packages")
+  /// Унікальні автомати в цій здачі (snapshot з БД)
+  machineCount     Int      @map("machine_count")
+  collectionCount  Int      @default(0) @map("collection_count")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  recountClosedAt  DateTime? @map("recount_closed_at") @db.Timestamptz(6)
+
+  @@index([technicianId])
+  @@index([cashierId])
+  @@index([createdAt])
+  @@map("collection_handovers")
+}
+
+/// Відсутня інкасація після закриття перерахунку всіх пакетів здачі
+model CollectionMissingEvent {
+  id             Int       @id @default(autoincrement())
+  collectionId   Int       @unique @map("collection_id")
+  handoverId     Int       @map("handover_id")
+  technicianId   Int?      @map("technician_id")
+  technicianName String?   @map("technician_name") @db.VarChar(255)
+  machine        String
+  expectedSum    Decimal   @map("expected_sum") @db.Decimal(10, 2)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  managerAckedAt DateTime? @map("manager_acked_at") @db.Timestamptz(6)
+  managerId      Int?      @map("manager_id")
+
+  @@index([handoverId])
+  @@index([managerAckedAt])
+  @@map("collection_missing_events")
 }
 
 model maintenance_tasks {

@@ -1,5 +1,6 @@
 import prismadb from "@/lib/prismadb";
 import { digitsOnlyPhone } from "@/lib/phone";
+import { PUBLIC_PAGE_ROLES } from "@/lib/worker-roles";
 import {
   isManagerAckOnlyTask,
   isManagerReviewableStatus,
@@ -8,6 +9,8 @@ import {
   taskTypeLabel,
 } from "@/lib/task-fields";
 import { parsePhotoUrls } from "@/lib/photo-urls";
+import { listOpenMissingEvents } from "@/lib/collection-recount";
+import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 
 export type ManagerPublicTask = {
   id: number;
@@ -33,6 +36,16 @@ export type ManagerPublicTask = {
   reviewedAt: string | null;
 };
 
+export type ManagerPublicMissing = {
+  id: number;
+  handoverId: number;
+  technicianName: string;
+  machine: string;
+  expectedSum: number;
+  dateLabel: string;
+  timeLabel: string;
+};
+
 export type ManagerPublicPage = {
   manager: {
     id: number;
@@ -40,6 +53,7 @@ export type ManagerPublicPage = {
     phoneDigits: string;
   };
   tasks: ManagerPublicTask[];
+  missingEvents: ManagerPublicMissing[];
 };
 
 export async function findManagerByPhoneDigits(phoneDigits: string) {
@@ -62,7 +76,7 @@ export async function findPublicWorkerByPhoneDigits(phoneDigits: string) {
     where: {
       OR: [{ active: true }, { active: null }],
       phone: { not: null },
-      role: { in: ["technician", "manager"] },
+      role: { in: [...PUBLIC_PAGE_ROLES] },
     },
     select: { id: true, name: true, phone: true, role: true },
   });
@@ -125,7 +139,8 @@ export async function getManagerPublicPage(
   const manager = await findManagerByPhoneDigits(phoneDigits);
   if (!manager) return null;
 
-  const taskRows = await prismadb.tasks.findMany({
+  const [taskRows, missingRows] = await Promise.all([
+    prismadb.tasks.findMany({
     where: {
       OR: [
         {
@@ -162,7 +177,9 @@ export async function getManagerPublicPage(
       reviewedAt: true,
       worker: { select: { name: true } },
     },
-  });
+    }),
+    listOpenMissingEvents(),
+  ]);
 
   return {
     manager: {
@@ -171,5 +188,14 @@ export async function getManagerPublicPage(
       phoneDigits,
     },
     tasks: taskRows.map(mapManagerTask),
+    missingEvents: missingRows.map((e) => ({
+      id: e.id,
+      handoverId: e.handoverId,
+      technicianName: e.technicianName,
+      machine: e.machine,
+      expectedSum: e.expectedSum,
+      dateLabel: kyivDateLabel(e.createdAt),
+      timeLabel: kyivTimeLabel(e.createdAt),
+    })),
   };
 }

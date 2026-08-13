@@ -48,6 +48,12 @@ export function MainNav({
       active: pathname === `/machines` || pathname.startsWith(`/machines/`),
     },
     {
+      href: `/collections`,
+      label: "Інкасації",
+      active:
+        pathname === `/collections` || pathname.startsWith(`/collections/`),
+    },
+    {
       href: `/settings`,
       label: "Налаштування",
       active: pathname === `/settings` || pathname.startsWith(`/settings/`),

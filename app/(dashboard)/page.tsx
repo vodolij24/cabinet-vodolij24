@@ -11,22 +11,30 @@ import { BotWater30DaysChart } from "@/components/bot-water-30-days-chart";
 import { BotSuccess30DaysChart } from "@/components/bot-success-30-days-chart";
 import { BotInactive30DaysChart } from "@/components/bot-inactive-30-days-chart";
 import {
+  CashCard,
   CashHeavyDevicesCard,
   GoalsCard,
   LowBotDevicesCard,
 } from "@/components/dashboard-insight-cards";
+import { getCashOnHandSnapshot } from "@/lib/cash-on-hand";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const DashboardPage = async () => {
-  const [graphRevenue, waterLast30Days, botSuccess30Days, insightCards] =
-    await Promise.all([
-      getGraphRevenue(),
-      getWaterLast30Days(),
-      getBotSuccessLast30Days(),
-      getDashboardInsightCards(),
-    ]);
+  const [
+    graphRevenue,
+    waterLast30Days,
+    botSuccess30Days,
+    insightCards,
+    cashOnHand,
+  ] = await Promise.all([
+    getGraphRevenue(),
+    getWaterLast30Days(),
+    getBotSuccessLast30Days(),
+    getDashboardInsightCards(),
+    getCashOnHandSnapshot(),
+  ]);
 
   return (
     <div className="flex-col">
@@ -34,7 +42,15 @@ const DashboardPage = async () => {
         <Heading title="Аналітика" description="Підсумок данних" />
         <Separator />
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <CashCard
+            total={cashOnHand.total}
+            inMachines={cashOnHand.inMachines}
+            withTechnicians={cashOnHand.withTechnicians}
+            machinesWithCash={cashOnHand.machinesWithCash}
+            machinesCount={cashOnHand.machinesCount}
+            technicians={cashOnHand.technicians}
+          />
           <GoalsCard goals={insightCards.goals} />
           <LowBotDevicesCard items={insightCards.lowBotDevices} />
           <CashHeavyDevicesCard items={insightCards.cashHeavyDevices} />

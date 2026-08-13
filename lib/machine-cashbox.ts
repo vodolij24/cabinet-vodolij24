@@ -134,3 +134,29 @@ export async function getMachineCashboxMap(
 
   return map;
 }
+
+/** Сума неінкасованої готівки по всіх автоматах мережі */
+export async function getTotalCashInMachines(): Promise<{
+  total: number;
+  machinesWithCash: number;
+  machinesCount: number;
+}> {
+  const machines = await prismadb.vending_machines.findMany({
+    select: { id: true },
+  });
+  const ids = machines.map((m) => m.id);
+  const map = await getMachineCashboxMap(ids);
+
+  let total = 0;
+  let machinesWithCash = 0;
+  for (const row of map.values()) {
+    total += row.cashInMachine;
+    if (row.cashInMachine > 0) machinesWithCash += 1;
+  }
+
+  return {
+    total: roundMoney(total),
+    machinesWithCash,
+    machinesCount: ids.length,
+  };
+}

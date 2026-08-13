@@ -5,6 +5,21 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 const MAIN_BOT_TOKEN = process.env.MAIN_TG_BOT_TOKEN;
 
+export async function sendStaffTextNotification(
+  chatId: string,
+  text: string
+) {
+  if (!TELEGRAM_BOT_TOKEN) return;
+  try {
+    await axios.post(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+      { chat_id: chatId, text }
+    );
+  } catch (err) {
+    console.error("Помилка Telegram staff:", err);
+  }
+}
+
 export async function sendTelegramTaskNotification(
   chatId: string,
   task: tasks,

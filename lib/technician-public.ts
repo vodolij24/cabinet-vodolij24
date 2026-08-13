@@ -9,6 +9,11 @@ import {
   taskTypeLabel,
 } from "@/lib/task-fields";
 import { parsePhotoUrls } from "@/lib/photo-urls";
+import { getMachineCashboxMap } from "@/lib/machine-cashbox";
+import { getMachineWaterMetricsMap } from "@/lib/soliton-water-metrics";
+import { type SolitonSensor } from "@/lib/soliton-sensors";
+
+export type TechnicianPublicSensor = SolitonSensor;
 
 export type TechnicianPublicMachine = {
   id: number;
@@ -18,6 +23,13 @@ export type TechnicianPublicMachine = {
   lon: string | null;
   status: string | null;
   waterLitersMonth: number;
+  cashInMachine: number;
+  lastCollectionDate: string | null;
+  lastCollectionSum: number | null;
+  filterSpeed: number | null;
+  waterTds: number | null;
+  waterMetricsDate: string | null;
+  sensors: TechnicianPublicSensor[];
 };
 
 export type TechnicianPublicTask = {
@@ -105,15 +117,31 @@ export async function getTechnicianPublicPage(
     }
   }
 
-  const rows: TechnicianPublicMachine[] = machines.map((m) => ({
-    id: m.id,
-    name: m.name,
-    location: m.location,
-    lat: m.lat,
-    lon: m.lon,
-    status: m.status,
-    waterLitersMonth: waterByDevice.get(m.id) || 0,
-  }));
+  const [cashboxMap, waterMetrics] = await Promise.all([
+    getMachineCashboxMap(deviceIds),
+    getMachineWaterMetricsMap(deviceIds),
+  ]);
+
+  const rows: TechnicianPublicMachine[] = machines.map((m) => {
+    const cashbox = cashboxMap.get(m.id);
+    const water = waterMetrics.get(m.id);
+    return {
+      id: m.id,
+      name: m.name,
+      location: m.location,
+      lat: m.lat,
+      lon: m.lon,
+      status: m.status,
+      waterLitersMonth: waterByDevice.get(m.id) || 0,
+      cashInMachine: cashbox?.cashInMachine ?? 0,
+      lastCollectionDate: cashbox?.lastCollectionDate ?? null,
+      lastCollectionSum: cashbox?.lastCollectionSum ?? null,
+      filterSpeed: water?.filterSpeed ?? null,
+      waterTds: water?.tds ?? null,
+      waterMetricsDate: water?.metricsDate ?? null,
+      sensors: [],
+    };
+  });
 
   const totalWaterLitersMonth = rows.reduce(
     (sum, m) => sum + m.waterLitersMonth,
