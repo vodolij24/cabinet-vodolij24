@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 
 import { isPhoneRouteParam } from "@/lib/phone";
@@ -21,6 +20,19 @@ import { CashierHandoversClient } from "./components/cashier-handovers-client";
 
 export const dynamic = "force-dynamic";
 
+function PublicLogo() {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/vodolij-logo.svg"
+      alt="Vodolij"
+      width={168}
+      height={44}
+      className="h-11 w-[168px]"
+    />
+  );
+}
+
 async function CashierPage({ phone }: { phone: string }) {
   const data = await getCashierPublicPage(phone);
   if (!data) notFound();
@@ -28,14 +40,7 @@ async function CashierPage({ phone }: { phone: string }) {
   return (
     <main className="mx-auto max-w-3xl px-4 pb-8 pt-2 sm:px-6">
       <header className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Image
-          src="/vodolij-logo.svg"
-          alt="Vodolij"
-          width={168}
-          height={44}
-          priority
-          unoptimized
-        />
+        <PublicLogo />
         <div className="text-left sm:text-right">
           <p className="text-sm text-sky-700/70 dark:text-sky-300/70">Касир</p>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
@@ -67,14 +72,7 @@ async function ManagerPage({ phone }: { phone: string }) {
   return (
     <main className="mx-auto max-w-3xl px-4 pb-8 pt-2 sm:px-6">
       <header className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Image
-          src="/vodolij-logo.svg"
-          alt="Vodolij"
-          width={168}
-          height={44}
-          priority
-          unoptimized
-        />
+        <PublicLogo />
         <div className="text-left sm:text-right">
           <p className="text-sm text-sky-700/70 dark:text-sky-300/70">
             Керівник
@@ -118,14 +116,7 @@ async function TechnicianPage({ phone }: { phone: string }) {
   return (
     <main className="mx-auto max-w-3xl px-4 pb-8 pt-2 sm:px-6">
       <header className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Image
-          src="/vodolij-logo.svg"
-          alt="Vodolij"
-          width={168}
-          height={44}
-          priority
-          unoptimized
-        />
+        <PublicLogo />
         <div className="text-left sm:text-right">
           <p className="text-sm text-sky-700/70 dark:text-sky-300/70">Технік</p>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">

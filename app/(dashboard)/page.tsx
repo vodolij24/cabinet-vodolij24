@@ -1,15 +1,10 @@
 import { Separator } from "@/components/ui/separator";
-import { Overview } from "@/components/overview";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { getGraphRevenue } from "@/actions/get-graph-revenue";
 import { getWaterLast30Days } from "@/actions/get-water-last-30-days";
 import { getBotSuccessLast30Days } from "@/actions/get-bot-success-30-days";
 import { getDashboardInsightCards } from "@/actions/get-dashboard-insight-cards";
-import { Water30DaysChart } from "@/components/water-30-days-chart";
-import { BotWater30DaysChart } from "@/components/bot-water-30-days-chart";
-import { BotSuccess30DaysChart } from "@/components/bot-success-30-days-chart";
-import { BotInactive30DaysChart } from "@/components/bot-inactive-30-days-chart";
+import { AnalyticsCharts } from "@/components/analytics-charts";
 import {
   CashCard,
   CashHeavyDevicesCard,
@@ -56,58 +51,11 @@ const DashboardPage = async () => {
           <CashHeavyDevicesCard items={insightCards.cashHeavyDevices} />
         </div>
 
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>
-              Мережа за 30 днів: налито води та частка готівки
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <Water30DaysChart data={waterLast30Days} />
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>
-              Бот: налито води та активні користувачі за останні 30 днів
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <BotWater30DaysChart data={waterLast30Days} />
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Отримано коштів за останні 12 місяців</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <Overview data={graphRevenue} />
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>
-              Успіх бота за 30 днів: частка та повернення
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <BotSuccess30DaysChart data={botSuccess30Days} />
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>
-              Бот за 30 днів: усього, активні, неактивні та недореєстровані (шт)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <BotInactive30DaysChart data={botSuccess30Days} />
-          </CardContent>
-        </Card>
+        <AnalyticsCharts
+          graphRevenue={graphRevenue}
+          waterLast30Days={waterLast30Days}
+          botSuccess30Days={botSuccess30Days}
+        />
       </div>
     </div>
   );
