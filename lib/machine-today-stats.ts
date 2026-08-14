@@ -181,7 +181,7 @@ export async function getMachineTodayTransactions(
       if (api.cardId == null) continue;
       const bot = userByChat.get(api.chat_id.toString());
       ownerByCardId.set(api.cardId, {
-        name: botClientName(api.name, bot),
+        name: botClientName(api.name, bot ?? null),
         phone: (bot?.phone || api.phone || "").trim() || null,
         cardNumber: cardNumberById.get(api.cardId) || null,
       });
