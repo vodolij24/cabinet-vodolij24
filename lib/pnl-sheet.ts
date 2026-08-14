@@ -24,13 +24,21 @@ function blobToken() {
   return process.env.BLOB_READ_WRITE_TOKEN?.trim() || undefined;
 }
 
-async function saveSpreadsheetFile(periodKey: string, kind: PnlSheetKind, file: File) {
+type SavedSheet =
+  | { error: string }
+  | { url: string; buf: Buffer; fileName: string };
+
+async function saveSpreadsheetFile(
+  periodKey: string,
+  kind: PnlSheetKind,
+  file: File
+): Promise<SavedSheet> {
   const ext = extOf(file);
   if (!ext) {
-    return { error: "Дозволені формати: XLSX, XLS, CSV, ODS" as const };
+    return { error: "Дозволені формати: XLSX, XLS, CSV, ODS" };
   }
   if (file.size > MAX_BYTES) {
-    return { error: "Файл до 8 МБ" as const };
+    return { error: "Файл до 8 МБ" };
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
@@ -42,7 +50,7 @@ async function saveSpreadsheetFile(periodKey: string, kind: PnlSheetKind, file: 
     if (!token) {
       return {
         error:
-          "Сховище файлів не налаштоване (BLOB_READ_WRITE_TOKEN)." as const,
+          "Сховище файлів не налаштоване (BLOB_READ_WRITE_TOKEN).",
       };
     }
     const blob = await put(`${folder}/${name}`, buf, {
@@ -265,7 +273,9 @@ export async function ingestPnlSpreadsheet(input: {
     input.kind,
     input.file
   );
-  if ("error" in saved) return saved;
+  if ("error" in saved) {
+    return { error: saved.error };
+  }
 
   let matrix: string[][] = [];
   try {
