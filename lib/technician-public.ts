@@ -11,7 +11,7 @@ import {
 import { parsePhotoUrls } from "@/lib/photo-urls";
 import { getMachineCashboxMap } from "@/lib/machine-cashbox";
 import { getMachineWaterMetricsMap } from "@/lib/soliton-water-metrics";
-import { type SolitonSensor } from "@/lib/soliton-sensors";
+import { getCachedSensorsMap, type SolitonSensor } from "@/lib/soliton-sensors";
 
 export type TechnicianPublicSensor = SolitonSensor;
 
@@ -117,9 +117,10 @@ export async function getTechnicianPublicPage(
     }
   }
 
-  const [cashboxMap, waterMetrics] = await Promise.all([
+  const [cashboxMap, waterMetrics, sensorsMap] = await Promise.all([
     getMachineCashboxMap(deviceIds),
     getMachineWaterMetricsMap(deviceIds),
+    getCachedSensorsMap(deviceIds),
   ]);
 
   const rows: TechnicianPublicMachine[] = machines.map((m) => {
@@ -139,7 +140,7 @@ export async function getTechnicianPublicPage(
       filterSpeed: water?.filterSpeed ?? null,
       waterTds: water?.tds ?? null,
       waterMetricsDate: water?.metricsDate ?? null,
-      sensors: [],
+      sensors: sensorsMap.get(m.id) ?? [],
     };
   });
 

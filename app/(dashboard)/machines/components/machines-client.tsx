@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import { Check, Pencil, Trash2, X } from "lucide-react";
+import { Check, Pencil, Trash2, X, ArrowUp, ArrowDown } from "lucide-react";
+
+import { SolitonRefreshButton } from "@/components/soliton-refresh-button";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -31,6 +34,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  STATEMENT_PERIOD_PRESETS,
+  kyivDateInputValue,
+  type StatementPeriodPreset,
+} from "@/lib/kyiv-date";
 
 export type MachineRow = {
   id: number;
@@ -44,6 +52,7 @@ export type MachineRow = {
   todayCashless: number;
   cashInMachine: number;
   lastCollectionDate: string | null;
+  lastCollectionMs: number | null;
   lastCollectionSum: number | null;
   filterSpeed: number | null;
   waterTds: number | null;
@@ -104,10 +113,12 @@ function CashboxCell({
   amount,
   lastCollectionDate,
   lastCollectionSum,
+  onClick,
 }: {
   amount: number;
   lastCollectionDate: string | null;
   lastCollectionSum: number | null;
+  onClick?: () => void;
 }) {
   const tip = lastCollectionDate
     ? `Інкас. ${lastCollectionDate}${
@@ -118,7 +129,12 @@ function CashboxCell({
     : "Інкасацій немає";
 
   return (
-    <div className="flex flex-col items-end" title={tip}>
+    <button
+      type="button"
+      className="flex w-full flex-col items-end"
+      title={`${tip} · створити задачу`}
+      onClick={onClick}
+    >
       <Badge
         className={`px-1.5 py-0 text-[11px] tabular-nums ${cashboxBadgeClass(amount)}`}
       >
@@ -129,7 +145,7 @@ function CashboxCell({
           {lastCollectionDate.split(",")[0]}
         </div>
       ) : null}
-    </div>
+    </button>
   );
 }
 
@@ -155,24 +171,36 @@ function MetricCell({
   date,
   badgeClass,
   empty = "—",
+  onClick,
 }: {
   value: number | null;
   unit: string;
   date: string | null;
   badgeClass: (n: number) => string;
   empty?: string;
+  onClick?: () => void;
 }) {
   if (value == null) {
-    return <span className="text-muted-foreground">{empty}</span>;
+    return (
+      <button
+        type="button"
+        className="text-muted-foreground"
+        title="Створити задачу"
+        onClick={onClick}
+      >
+        {empty}
+      </button>
+    );
   }
   return (
-    <Badge
-      className={`px-1.5 py-0 text-[11px] tabular-nums ${badgeClass(value)}`}
-      title={date || undefined}
-    >
-      {formatSpeed(value)}
-      {unit ? ` ${unit}` : ""}
-    </Badge>
+    <button type="button" title={date ? `${date} · створити задачу` : "Створити задачу"} onClick={onClick}>
+      <Badge
+        className={`px-1.5 py-0 text-[11px] tabular-nums ${badgeClass(value)}`}
+      >
+        {formatSpeed(value)}
+        {unit ? ` ${unit}` : ""}
+      </Badge>
+    </button>
   );
 }
 
@@ -182,18 +210,133 @@ function filterTitle(filter: TxFilter) {
   return "Усі транзакції";
 }
 
+type MachineTaskKind = "cash" | "tds" | "speed";
+
+function machineTaskDraft(kind: MachineTaskKind, m: MachineRow) {
+  const where = m.name ? `№${m.id} · ${m.name}` : `автомат №${m.id}`;
+  const loc = m.location ? `\nЛокація: ${m.location}` : "";
+  if (kind === "cash") {
+    return {
+      title: `Інкасація · ${where}`,
+      description:
+        `Каса в апараті: ${formatMoneyFull(m.cashInMachine)}.` +
+        (m.lastCollectionDate
+          ? ` Остання інкасація: ${m.lastCollectionDate}${
+              m.lastCollectionSum != null
+                ? ` (${formatMoneyFull(m.lastCollectionSum)})`
+                : ""
+            }.`
+          : " Інкасацій ще не було.") +
+        loc,
+    };
+  }
+  if (kind === "tds") {
+    return {
+      title: `TDS · ${where}`,
+      description:
+        `TDS: ${m.waterTds != null ? formatSpeed(m.waterTds) : "немає даних"}.` +
+        (m.waterMetricsDate ? ` Дата метрики: ${m.waterMetricsDate}.` : "") +
+        loc,
+    };
+  }
+  return {
+    title: `Швидкість наливу · ${where}`,
+    description:
+      `Швидкість наливу: ${
+        m.filterSpeed != null ? formatSpeed(m.filterSpeed) : "немає даних"
+      }.` +
+      (m.waterMetricsDate ? ` Дата метрики: ${m.waterMetricsDate}.` : "") +
+      loc,
+  };
+}
+
+type SortKey =
+  | "id"
+  | "todayLiters"
+  | "todayCash"
+  | "todayCashless"
+  | "cashInMachine"
+  | "filterSpeed"
+  | "waterTds"
+  | "lastCollectionMs";
+
+type SortDir = "asc" | "desc";
+
+const DEFAULT_DESC: SortKey[] = [
+  "todayLiters",
+  "todayCash",
+  "todayCashless",
+  "cashInMachine",
+  "filterSpeed",
+  "waterTds",
+];
+
+function sortValue(row: MachineRow, key: SortKey): number | null {
+  if (key === "id") return row.id;
+  if (key === "todayLiters") return row.todayLiters;
+  if (key === "todayCash") return row.todayCash;
+  if (key === "todayCashless") return row.todayCashless;
+  if (key === "cashInMachine") return row.cashInMachine;
+  if (key === "filterSpeed") return row.filterSpeed;
+  if (key === "waterTds") return row.waterTds;
+  return row.lastCollectionMs;
+}
+
+function SortHead({
+  label,
+  title,
+  sortKey,
+  current,
+  dir,
+  onSort,
+  className,
+  align = "end",
+}: {
+  label: string;
+  title?: string;
+  sortKey: SortKey;
+  current: SortKey;
+  dir: SortDir;
+  onSort: (key: SortKey) => void;
+  className?: string;
+  align?: "start" | "end";
+}) {
+  const active = current === sortKey;
+  return (
+    <TableHead className={className} title={title}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex w-full items-center gap-0.5 hover:text-foreground ${
+          align === "end" ? "justify-end" : "justify-start"
+        }`}
+      >
+        <span>{label}</span>
+        {active ? (
+          dir === "asc" ? (
+            <ArrowUp className="h-3 w-3 shrink-0" />
+          ) : (
+            <ArrowDown className="h-3 w-3 shrink-0" />
+          )
+        ) : null}
+      </button>
+    </TableHead>
+  );
+}
+
 export function MachinesClient({
   machines,
   technicians,
   todayLabel,
+  lastSolitonSync,
 }: {
   machines: MachineRow[];
   technicians: TechnicianOption[];
   todayLabel: string;
+  lastSolitonSync?: string | null;
 }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<number | "new" | null>(null);
-  const [syncing, setSyncing] = useState(false);
   const [filterTech, setFilterTech] = useState("all");
   const [searchId, setSearchId] = useState("");
   const [draftId, setDraftId] = useState("");
@@ -211,6 +354,33 @@ export function MachinesClient({
   const [txMachine, setTxMachine] = useState<MachineRow | null>(null);
   const [txFilter, setTxFilter] = useState<TxFilter>("all");
   const [txRows, setTxRows] = useState<TxRow[]>([]);
+  const [txPeriod, setTxPeriod] = useState<StatementPeriodPreset>("day");
+  const [txFrom, setTxFrom] = useState(kyivDateInputValue(new Date()));
+  const [txTo, setTxTo] = useState(kyivDateInputValue(new Date()));
+  const [txRangeLabel, setTxRangeLabel] = useState("");
+  const [txTotals, setTxTotals] = useState({
+    liters: 0,
+    cash: 0,
+    cashless: 0,
+  });
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [taskBusy, setTaskBusy] = useState(false);
+  const [taskMachine, setTaskMachine] = useState<MachineRow | null>(null);
+  const [taskKind, setTaskKind] = useState<MachineTaskKind>("cash");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskDue, setTaskDue] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("id");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const onSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDir(DEFAULT_DESC.includes(key) ? "desc" : "asc");
+  };
 
   const filteredMachines = useMemo(() => {
     let rows = machines;
@@ -227,45 +397,117 @@ export function MachinesClient({
       rows = rows.filter((m) => m.technicianId === id);
     }
 
-    return rows;
-  }, [machines, filterTech, searchId]);
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      const av = sortValue(a, sortKey);
+      const bv = sortValue(b, sortKey);
+      if (av == null && bv == null) return a.id - b.id;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      const cmp = av === bv ? 0 : av < bv ? -1 : 1;
+      if (cmp !== 0) return sortDir === "asc" ? cmp : -cmp;
+      return a.id - b.id;
+    });
+    return copy;
+  }, [machines, filterTech, searchId, sortKey, sortDir]);
 
-  const openTxLog = async (machine: MachineRow, filter: TxFilter) => {
+  const openTaskDialog = (machine: MachineRow, kind: MachineTaskKind) => {
+    const draft = machineTaskDraft(kind, machine);
+    setTaskMachine(machine);
+    setTaskKind(kind);
+    setTaskTitle(draft.title);
+    setTaskDescription(draft.description);
+    setTaskDue("");
+    setTaskOpen(true);
+  };
+
+  const createMachineTask = async () => {
+    if (!taskMachine) return;
+    if (!taskTitle.trim()) {
+      toast.error("Вкажіть назву задачі");
+      return;
+    }
+    if (!taskMachine.technicianId) {
+      toast.error("Спочатку призначте техніка на автомат");
+      return;
+    }
+    try {
+      setTaskBusy(true);
+      await axios.post("/api/tasks", {
+        title: taskTitle.trim(),
+        description: taskDescription.trim(),
+        deviceId: taskMachine.id,
+        baseLocation: taskMachine.location || null,
+        workerId: taskMachine.technicianId,
+        type: "operational",
+        dueAt: taskDue || null,
+      });
+      toast.success("Задачу створено");
+      setTaskOpen(false);
+    } catch (error) {
+      const message =
+        axios.isAxiosError(error) && typeof error.response?.data === "string"
+          ? error.response.data
+          : "Не вдалося створити задачу";
+      toast.error(message);
+    } finally {
+      setTaskBusy(false);
+    }
+  };
+
+  const openTxLog = (machine: MachineRow, filter: TxFilter) => {
+    const today = kyivDateInputValue(new Date());
     setTxMachine(machine);
     setTxFilter(filter);
-    setTxOpen(true);
+    setTxPeriod("day");
+    setTxFrom(today);
+    setTxTo(today);
     setTxRows([]);
-    try {
-      setTxLoading(true);
-      const { data } = await axios.get<{ transactions: TxRow[] }>(
-        `/api/machines/${machine.id}/transactions?filter=${filter}`
-      );
-      setTxRows(data.transactions || []);
-    } catch {
-      toast.error("Не вдалося завантажити транзакції");
-      setTxOpen(false);
-    } finally {
-      setTxLoading(false);
-    }
+    setTxOpen(true);
   };
 
-  const onSync = async () => {
-    try {
-      setSyncing(true);
-      const { data } = await axios.post("/api/machines/sync");
-      toast.success(
-        `Soliton: ${data.total} · нових ${data.created} · оновлено ${data.updated}` +
-          (data.metrics
-            ? ` · метрики ${data.metrics.updated}/${data.metrics.total}`
-            : "")
-      );
-      router.refresh();
-    } catch {
-      toast.error("Не вдалося синхронізувати з Soliton");
-    } finally {
-      setSyncing(false);
+  useEffect(() => {
+    if (!txOpen || !txMachine) return;
+    if (txPeriod === "custom" && (!txFrom || !txTo || txFrom > txTo)) return;
+
+    let cancelled = false;
+    const machineId = txMachine.id;
+    const params = new URLSearchParams({
+      filter: txFilter,
+      period: txPeriod,
+    });
+    if (txPeriod === "custom") {
+      params.set("from", txFrom);
+      params.set("to", txTo);
     }
-  };
+
+    (async () => {
+      try {
+        setTxLoading(true);
+        const { data } = await axios.get<{
+          transactions: TxRow[];
+          rangeLabel?: string;
+          totals?: { liters: number; cash: number; cashless: number };
+        }>(`/api/machines/${machineId}/transactions?${params.toString()}`);
+        if (cancelled) return;
+        setTxRows(data.transactions || []);
+        setTxRangeLabel(data.rangeLabel || "");
+        setTxTotals(
+          data.totals || { liters: 0, cash: 0, cashless: 0 }
+        );
+      } catch {
+        if (cancelled) return;
+        toast.error("Не вдалося завантажити транзакції");
+        setTxRows([]);
+      } finally {
+        if (!cancelled) setTxLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [txOpen, txMachine, txFilter, txPeriod, txFrom, txTo]);
 
   const startEdit = (m: MachineRow) => {
     setEditId(m.id);
@@ -377,13 +619,7 @@ export function MachinesClient({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="secondary"
-          disabled={syncing || busyId !== null}
-          onClick={onSync}
-        >
-          {syncing ? "Синхронізація…" : "Оновити з Soliton"}
-        </Button>
+        <SolitonRefreshButton lastSyncAt={lastSolitonSync} />
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground whitespace-nowrap">
             № апарату
@@ -482,32 +718,96 @@ export function MachinesClient({
         <Table className="w-full table-fixed text-xs">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[44px] px-1.5">№</TableHead>
+              <SortHead
+                label="№"
+                sortKey="id"
+                current={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+                align="start"
+                className="w-[44px] px-1.5"
+              />
               <TableHead className="w-[12%] px-1.5">Назва</TableHead>
               <TableHead className="w-[14%] px-1.5">Локація</TableHead>
               <TableHead className="w-[10%] px-1.5">Технік</TableHead>
-              <TableHead className="w-[56px] px-1 text-right" title="Об'єм, л">
-                л
-              </TableHead>
-              <TableHead className="w-[56px] px-1 text-right" title="Готівка">
-                Гот.
-              </TableHead>
-              <TableHead
+              <SortHead
+                label="л"
+                title="Об'єм, л"
+                sortKey="todayLiters"
+                current={sortKey}
+                dir={sortDir}
+                onSort={onSort}
                 className="w-[56px] px-1 text-right"
+              />
+              <SortHead
+                label="Гот."
+                title="Готівка"
+                sortKey="todayCash"
+                current={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+                className="w-[56px] px-1 text-right"
+              />
+              <SortHead
+                label="Безг."
                 title="Безготівка"
-              >
-                Безг.
-              </TableHead>
-              <TableHead className="w-[72px] px-1 text-right">Каса</TableHead>
-              <TableHead
+                sortKey="todayCashless"
+                current={sortKey}
+                dir={sortDir}
+                onSort={onSort}
                 className="w-[56px] px-1 text-right"
-                title="Швидкість фільтрації"
-              >
-                Шв.
+              />
+              <TableHead className="w-[72px] px-1 text-right">
+                <div className="flex flex-col items-end leading-tight">
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-end gap-0.5 hover:text-foreground"
+                    onClick={() => onSort("cashInMachine")}
+                  >
+                    Каса
+                    {sortKey === "cashInMachine" ? (
+                      sortDir === "asc" ? (
+                        <ArrowUp className="h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3" />
+                      )
+                    ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-end gap-0.5 text-[10px] font-normal text-muted-foreground hover:text-foreground"
+                    title="Дата останньої інкасації"
+                    onClick={() => onSort("lastCollectionMs")}
+                  >
+                    інкас.
+                    {sortKey === "lastCollectionMs" ? (
+                      sortDir === "asc" ? (
+                        <ArrowUp className="h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3" />
+                      )
+                    ) : null}
+                  </button>
+                </div>
               </TableHead>
-              <TableHead className="w-[56px] px-1 text-right" title="TDS">
-                TDS
-              </TableHead>
+              <SortHead
+                label="Шв."
+                title="Швидкість наливу"
+                sortKey="filterSpeed"
+                current={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+                className="w-[56px] px-1 text-right"
+              />
+              <SortHead
+                label="TDS"
+                title="TDS"
+                sortKey="waterTds"
+                current={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+                className="w-[56px] px-1 text-right"
+              />
               <TableHead className="w-[28px] px-0.5" title="Статус" />
               <TableHead className="w-[64px] px-1 text-right" />
             </TableRow>
@@ -696,6 +996,7 @@ export function MachinesClient({
                         amount={m.cashInMachine}
                         lastCollectionDate={m.lastCollectionDate}
                         lastCollectionSum={m.lastCollectionSum}
+                        onClick={() => openTaskDialog(m, "cash")}
                       />
                     </TableCell>
                     <TableCell className="px-1 text-right">
@@ -704,6 +1005,7 @@ export function MachinesClient({
                         unit=""
                         date={m.waterMetricsDate}
                         badgeClass={speedBadgeClass}
+                        onClick={() => openTaskDialog(m, "speed")}
                       />
                     </TableCell>
                     <TableCell className="px-1 text-right">
@@ -712,6 +1014,7 @@ export function MachinesClient({
                         unit=""
                         date={m.waterMetricsDate}
                         badgeClass={tdsBadgeClass}
+                        onClick={() => openTaskDialog(m, "tds")}
                       />
                     </TableCell>
                     <TableCell className="px-0.5 text-center">
@@ -758,10 +1061,58 @@ export function MachinesClient({
               {filterTitle(txFilter)} · №{txMachine?.id}
             </DialogTitle>
             <DialogDescription>
-              {txMachine?.name || txMachine?.location || "Автомат"} · за{" "}
-              {todayLabel} (Europe/Kyiv)
+              {txMachine?.name || txMachine?.location || "Автомат"}
+              {txRangeLabel ? ` · ${txRangeLabel}` : ""}
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Період</label>
+              <Select
+                value={txPeriod}
+                onValueChange={(v) => setTxPeriod(v as StatementPeriodPreset)}
+              >
+                <SelectTrigger className="h-8 w-[200px] text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATEMENT_PERIOD_PRESETS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {txPeriod === "custom" ? (
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Від</label>
+                  <Input
+                    type="date"
+                    value={txFrom}
+                    onChange={(e) => setTxFrom(e.target.value)}
+                    className="h-8 w-[150px]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">До</label>
+                  <Input
+                    type="date"
+                    value={txTo}
+                    onChange={(e) => setTxTo(e.target.value)}
+                    className="h-8 w-[150px]"
+                  />
+                </div>
+              </>
+            ) : null}
+            <p className="pb-1 text-xs text-muted-foreground">
+              {txTotals.liters.toLocaleString("uk-UA")} л · гот.{" "}
+              {formatMoneyFull(txTotals.cash)} · безг.{" "}
+              {formatMoneyFull(txTotals.cashless)}
+            </p>
+          </div>
 
           {txLoading ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
@@ -769,7 +1120,7 @@ export function MachinesClient({
             </p>
           ) : txRows.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Немає транзакцій за сьогодні
+              Немає транзакцій за період
             </p>
           ) : (
             <div className="max-h-[60vh] overflow-auto rounded-md border">
@@ -793,8 +1144,8 @@ export function MachinesClient({
                 </TableHeader>
                 <TableBody>
                   {txRows.map((row) => {
-                    const isCardTx = row.card > 0 || row.online > 0;
-                    const owner = isCardTx ? row.cardOwner : null;
+                    const owner = row.cardOwner;
+                    const hasCard = row.cardId != null && row.cardId > 0;
                     return (
                       <TableRow key={row.id}>
                         <TableCell className="whitespace-nowrap text-sm">
@@ -819,11 +1170,11 @@ export function MachinesClient({
                           </>
                         ) : null}
                         <TableCell className="min-w-[160px] text-sm">
-                          {isCardTx ? (
-                            owner ? (
+                          {hasCard ? (
+                            owner?.name || owner?.phone || owner?.cardNumber ? (
                               <div>
                                 <div className="font-medium">
-                                  {owner.name || "Без імені"}
+                                  {owner.name || "Клієнт бота"}
                                 </div>
                                 {owner.phone ? (
                                   <div className="text-xs text-muted-foreground">
@@ -860,6 +1211,74 @@ export function MachinesClient({
               Записів: {txRows.length}
             </p>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {taskKind === "cash"
+                ? "Задача: інкасація"
+                : taskKind === "tds"
+                  ? "Задача: TDS"
+                  : "Задача: швидкість наливу"}
+            </DialogTitle>
+            <DialogDescription>
+              {taskMachine
+                ? `№${taskMachine.id}${
+                    taskMachine.name ? ` · ${taskMachine.name}` : ""
+                  }${
+                    taskMachine.technicianName
+                      ? ` · ${taskMachine.technicianName}`
+                      : " · технік не призначений"
+                  }`
+                : "Автомат"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Назва</label>
+              <Input
+                value={taskTitle}
+                onChange={(e) => setTaskTitle(e.target.value)}
+                disabled={taskBusy}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Опис</label>
+              <Textarea
+                value={taskDescription}
+                onChange={(e) => setTaskDescription(e.target.value)}
+                disabled={taskBusy}
+                rows={4}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">
+                Термін (необовʼязково)
+              </label>
+              <Input
+                type="date"
+                value={taskDue}
+                onChange={(e) => setTaskDue(e.target.value)}
+                disabled={taskBusy}
+                className="w-[180px]"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                disabled={taskBusy}
+                onClick={() => setTaskOpen(false)}
+              >
+                Скасувати
+              </Button>
+              <Button disabled={taskBusy} onClick={() => void createMachineTask()}>
+                {taskBusy ? "Створення…" : "Створити задачу"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

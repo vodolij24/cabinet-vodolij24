@@ -50,6 +50,11 @@ export function TechnicianMachinesClient({
     const next = !open;
     setOpen(next);
     if (!next || sensorsLoaded || machines.length === 0) return;
+    const already = machines.some((m) => (m.sensors || []).length > 0);
+    if (already) {
+      setSensorsLoaded(true);
+      return;
+    }
     try {
       setLoadingSensors(true);
       const { data } = await axios.get<{

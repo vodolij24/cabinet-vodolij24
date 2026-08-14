@@ -255,6 +255,9 @@ model transactions {
   onlinePaymant   Float?   @db.Real
   paymantChange   Float?   @db.Real
   cardId          Int?
+
+  @@index([device])
+  @@index([device, date])
 }
 
 model user_achievements {
@@ -382,12 +385,13 @@ model vending_machines {
   alerts                String?
   filter_life_remaining Int?
   water_quality_status  enum_vending_machines_water_quality_status? @default(good)
-  /// Останні метрики з Soliton (кеш)
+  /// Останні метрики з Soliton (кеш, оновлення о 03:00 або кнопкою)
   solitonFilterSpeed    Float?
   solitonTds            Float?
   solitonQualityValue   Float?
   solitonMetricsDate    String?                                     @db.VarChar(32)
   solitonMetricsAt      DateTime?                                   @db.Timestamptz(6)
+  solitonSensors        Json?
   createdAt             DateTime                                    @default(now())
   updatedAt             DateTime
 

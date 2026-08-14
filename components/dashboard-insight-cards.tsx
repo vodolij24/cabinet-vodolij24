@@ -15,7 +15,7 @@ export function LowBotDevicesCard({ items }: { items: LowBotDevice[] }) {
           Топ апаратів без бота (30 днів)
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Багато наливів мережі, низька частка бота — куди ставити QR / наклейки
+          Наливи карткою клієнта бота за 30 днів, включно з сьогодні
         </p>
       </CardHeader>
       <CardContent>
@@ -189,63 +189,56 @@ export function CashCard({
   }>;
 }) {
   return (
-    <Card className="xl:col-span-2">
-      <CardHeader>
+    <Card>
+      <CardHeader className="pb-2">
         <CardTitle className="text-base">Готівка на руках</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Кеш в апаратах + нездані інкасації техніків
+        <p className="text-xs text-muted-foreground">
+          Апарати + нездані інкасації
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Разом</p>
-          <p className="text-3xl font-semibold tabular-nums tracking-tight">
-            {moneyUa(total)}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <p className="text-muted-foreground">Кеш в апаратах</p>
-            <p className="font-semibold tabular-nums">{moneyUa(inMachines)}</p>
-            <p className="text-xs text-muted-foreground">
-              {machinesWithCash} з {machinesCount} апаратів
-            </p>
+      <CardContent className="space-y-3">
+        <p className="text-2xl font-semibold tabular-nums tracking-tight">
+          {moneyUa(total)}
+        </p>
+        <div className="space-y-1 text-xs">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-muted-foreground">
+              В апаратах
+              <span className="ml-1 text-[11px]">
+                ({machinesWithCash}/{machinesCount})
+              </span>
+            </span>
+            <span className="font-medium tabular-nums">{moneyUa(inMachines)}</span>
           </div>
-          <div>
-            <p className="text-muted-foreground">На руках у техніків</p>
-            <p className="font-semibold tabular-nums">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-muted-foreground">У техніків</span>
+            <span className="font-medium tabular-nums">
               {moneyUa(withTechnicians)}
-            </p>
-            <p className="text-xs text-muted-foreground">нездані інкасації</p>
+            </span>
           </div>
         </div>
-
-        <div>
-          <p className="mb-2 text-sm font-medium">По техніках</p>
-          {technicians.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Немає незданих інкасацій</p>
-          ) : (
-            <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-              {technicians.map((t) => (
-                <li
-                  key={t.technicianId ?? "none"}
-                  className="flex items-center justify-between gap-3 text-sm"
-                >
-                  <div>
-                    <div className="font-medium">{t.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {t.collections.toLocaleString("uk-UA")} незданих
-                    </div>
-                  </div>
-                  <div className="text-right font-semibold tabular-nums">
-                    {moneyUa(t.amount)}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {technicians.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Немає незданих</p>
+        ) : (
+          <ul className="max-h-28 space-y-1 overflow-y-auto pr-1 text-xs">
+            {technicians.map((t) => (
+              <li
+                key={t.technicianId ?? "none"}
+                className="flex items-baseline justify-between gap-2"
+              >
+                <span className="truncate text-muted-foreground">
+                  {t.name}
+                  <span className="ml-1 tabular-nums">
+                    · {t.collections}
+                  </span>
+                </span>
+                <span className="shrink-0 font-medium tabular-nums">
+                  {moneyUa(t.amount)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );

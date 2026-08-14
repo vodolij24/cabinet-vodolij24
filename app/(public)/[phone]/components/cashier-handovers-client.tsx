@@ -42,8 +42,8 @@ export function CashierHandoversClient({
   } | null>(null);
   const [loadingPending, setLoadingPending] = useState(false);
 
-  const latest = handovers[0] ?? null;
-  const archive = handovers.slice(1);
+  const current = handovers.filter((h) => !h.recountClosed);
+  const archive = handovers.filter((h) => h.recountClosed);
 
   const selectedTech = useMemo(
     () => technicians.find((t) => String(t.id) === technicianId) || null,
@@ -200,11 +200,17 @@ export function CashierHandoversClient({
               </Button>
             </div>
           </div>
-        ) : latest ? (
-          <HandoverCard handover={latest} />
+        ) : current.length > 0 ? (
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {current.map((h) => (
+              <li key={h.id}>
+                <HandoverCard handover={h} />
+              </li>
+            ))}
+          </ul>
         ) : (
           <p className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            Поки немає здач інкасації
+            Немає відкритої здачі. Додайте нову або відкрийте архів.
           </p>
         )}
       </section>
@@ -231,7 +237,7 @@ export function CashierHandoversClient({
             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
               {archive.map((h) => (
                 <li key={h.id}>
-                  <HandoverCard handover={h} />
+                  <HandoverCard handover={h} phone={phone} showMachines />
                 </li>
               ))}
             </ul>
@@ -242,8 +248,57 @@ export function CashierHandoversClient({
   );
 }
 
-function HandoverCard({ handover }: { handover: CashierPublicHandover }) {
+function groupPackagesByMachine(packages: CashierPublicPackage[]) {
+  const map = new Map<string, CashierPublicPackage[]>();
+  for (const pkg of packages) {
+    const list = map.get(pkg.machine) ?? [];
+    list.push(pkg);
+    map.set(pkg.machine, list);
+  }
+  return [...map.entries()].map(([machine, pkgs]) => ({
+    machine,
+    packages: pkgs,
+    expected: pkgs.reduce((sum, p) => sum + p.total, 0),
+    actual: pkgs.reduce((sum, p) => sum + (p.actualReceived ?? 0), 0),
+    missingCount: pkgs.filter((p) => p.recountStatus === "missing").length,
+  }));
+}
+
+function HandoverCard({
+  handover,
+  phone,
+  showMachines = false,
+}: {
+  handover: CashierPublicHandover;
+  phone?: string;
+  showMachines?: boolean;
+}) {
   const warn = mismatch(handover);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [packages, setPackages] = useState<CashierPublicPackage[] | null>(null);
+
+  const loadMachines = async () => {
+    if (!phone || !showMachines) return;
+    const next = !open;
+    setOpen(next);
+    if (!next || packages != null) return;
+    try {
+      setLoading(true);
+      const { data } = await axios.get<{ packages: CashierPublicPackage[] }>(
+        `/api/public/cashier/${phone}/handovers/${handover.id}/packages`
+      );
+      setPackages(data.packages ?? []);
+    } catch {
+      toast.error("Не вдалося завантажити деталізацію");
+      setOpen(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const machines = packages ? groupPackagesByMachine(packages) : [];
+
   return (
     <div className="space-y-2 px-4 py-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -271,6 +326,62 @@ function HandoverCard({ handover }: { handover: CashierPublicHandover }) {
       <p className="text-xs text-slate-400">
         Інкасацій у здачі: {handover.collectionCount}
       </p>
+      {showMachines && phone ? (
+        <div className="pt-1">
+          <button
+            type="button"
+            className="text-sm font-medium text-sky-700 dark:text-sky-300"
+            onClick={() => void loadMachines()}
+          >
+            {open ? "Сховати автомати" : "Деталізація по автоматах"}
+          </button>
+          {open ? (
+            loading ? (
+              <p className="mt-2 text-sm text-slate-400">Завантаження…</p>
+            ) : machines.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-500">
+                У цій здачі немає інкасацій
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {machines.map((m) => (
+                  <li
+                    key={m.machine}
+                    className="rounded-xl bg-slate-50 px-3 py-3 dark:bg-slate-800/60"
+                  >
+                    <p className="font-medium text-slate-900 dark:text-slate-100">
+                      {m.machine}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                      Очікувалось {money(m.expected)}
+                      {m.packages.some((p) => p.actualReceived != null) ? (
+                        <> · фактично {money(m.actual)}</>
+                      ) : null}
+                    </p>
+                    {m.missingCount > 0 ? (
+                      <p className="mt-1 text-sm font-medium text-rose-700">
+                        Відсутніх пакетів: {m.missingCount}
+                      </p>
+                    ) : null}
+                    <ul className="mt-2 space-y-1 text-xs text-slate-500">
+                      {m.packages.map((pkg) => (
+                        <li key={pkg.id}>
+                          {pkg.dateLabel} {pkg.timeLabel} · {money(pkg.total)}
+                          {pkg.recountStatus === "missing"
+                            ? " · відсутній"
+                            : pkg.actualReceived != null
+                              ? ` · факт ${money(pkg.actualReceived)}`
+                              : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

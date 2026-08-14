@@ -16,6 +16,7 @@ export type HandoverRecord = {
   machineCount: number;
   collectionCount: number;
   createdAt: Date;
+  recountClosedAt: Date | null;
 };
 
 type HandoverRow = {
@@ -27,6 +28,7 @@ type HandoverRow = {
   machine_count: number;
   collection_count: number;
   created_at: Date;
+  recount_closed_at: Date | null;
 };
 
 function asInt(n: number) {
@@ -51,6 +53,7 @@ function mapHandover(r: HandoverRow): HandoverRecord {
     machineCount: r.machine_count,
     collectionCount: r.collection_count,
     createdAt: r.created_at,
+    recountClosedAt: r.recount_closed_at ?? null,
   };
 }
 
@@ -133,10 +136,10 @@ export async function listHandovers(
   try {
     const sql =
       cashierId != null
-        ? "SELECT id, technician_id, cashier_id, claimed_packages, received_packages, machine_count, collection_count, created_at FROM collection_handovers WHERE cashier_id = " +
+        ? "SELECT id, technician_id, cashier_id, claimed_packages, received_packages, machine_count, collection_count, created_at, recount_closed_at FROM collection_handovers WHERE cashier_id = " +
           asInt(cashierId) +
           " ORDER BY created_at DESC"
-        : "SELECT id, technician_id, cashier_id, claimed_packages, received_packages, machine_count, collection_count, created_at FROM collection_handovers ORDER BY created_at DESC";
+        : "SELECT id, technician_id, cashier_id, claimed_packages, received_packages, machine_count, collection_count, created_at, recount_closed_at FROM collection_handovers ORDER BY created_at DESC";
     const rows = await prismadb.$queryRawUnsafe<HandoverRow[]>(sql);
     return rows.map(mapHandover);
   } catch (error) {
@@ -170,7 +173,7 @@ export async function createHandover(input: {
     asInt(pending.machineCount) +
     ", " +
     asInt(pending.collectionCount) +
-    ", NOW()) RETURNING id, technician_id, cashier_id, claimed_packages, received_packages, machine_count, collection_count, created_at";
+    ", NOW()) RETURNING id, technician_id, cashier_id, claimed_packages, received_packages, machine_count, collection_count, created_at, recount_closed_at";
 
   const inserted = await prismadb.$queryRawUnsafe<HandoverRow[]>(sql);
   const row = inserted[0];

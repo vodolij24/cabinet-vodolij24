@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/soliton-sync",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

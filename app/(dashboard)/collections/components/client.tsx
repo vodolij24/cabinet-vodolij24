@@ -135,27 +135,21 @@ export const CollectionsClient: React.FC<CollectionsClientProps> = ({
 
   const summary = useMemo(() => {
     const machines = new Set<string>();
-    let countCoins = 0;
     let sumCoins = 0;
-    let countBanknotes = 0;
     let sumBanknotes = 0;
     let total = 0;
     for (const row of unhanded) {
       machines.add(
         row.deviceId != null ? `id:${row.deviceId}` : `name:${row.machine}`
       );
-      countCoins += row.countCoins;
       sumCoins += row.sumCoinsValue;
-      countBanknotes += row.countBanknotes;
       sumBanknotes += row.sumBanknotesValue;
       total += row.totalValue;
     }
     return {
       collections: unhanded.length,
       machines: machines.size,
-      countCoins,
       sumCoins,
-      countBanknotes,
       sumBanknotes,
       total,
     };
@@ -267,13 +261,11 @@ export const CollectionsClient: React.FC<CollectionsClientProps> = ({
         />
         <SummaryCard
           label="Монети"
-          value={`${summary.countCoins.toLocaleString("uk-UA")} шт`}
-          hint={`${money(summary.sumCoins)} грн`}
+          value={`${money(summary.sumCoins)} грн`}
         />
         <SummaryCard
           label="Купюри"
-          value={`${summary.countBanknotes.toLocaleString("uk-UA")} шт`}
-          hint={`${money(summary.sumBanknotes)} грн`}
+          value={`${money(summary.sumBanknotes)} грн`}
         />
       </div>
 

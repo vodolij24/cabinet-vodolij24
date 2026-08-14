@@ -43,6 +43,11 @@ export function MainNav({
       active: pathname === `/finance` || pathname.startsWith(`/finance/`),
     },
     {
+      href: `/pnl`,
+      label: "Фін. звіт",
+      active: pathname === `/pnl` || pathname.startsWith(`/pnl/`),
+    },
+    {
       href: `/machines`,
       label: "Автомати",
       active: pathname === `/machines` || pathname.startsWith(`/machines/`),

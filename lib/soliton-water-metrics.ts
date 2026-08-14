@@ -112,6 +112,10 @@ export async function getMachineWaterMetricsMap(
   if (deviceIds.length === 0) return map;
 
   try {
+    const list = deviceIds
+      .filter((id) => Number.isInteger(id) && id > 0)
+      .join(",");
+    if (!list) return map;
     const rows = await prismadb.$queryRawUnsafe<
       Array<{
         id: number;
@@ -123,8 +127,7 @@ export async function getMachineWaterMetricsMap(
     >(
       `SELECT id, "solitonFilterSpeed", "solitonTds", "solitonQualityValue", "solitonMetricsDate"
        FROM vending_machines
-       WHERE id = ANY($1::int[])`,
-      deviceIds
+       WHERE id IN (${list})`
     );
 
     for (const row of rows) {
@@ -175,18 +178,17 @@ export async function syncWaterMetricsFromSoliton(deviceIds?: number[]) {
     try {
       await prismadb.$executeRawUnsafe(
         `UPDATE vending_machines
-         SET "solitonFilterSpeed" = $1,
-             "solitonTds" = $2,
-             "solitonQualityValue" = $3,
-             "solitonMetricsDate" = $4,
+         SET "solitonFilterSpeed" = ${metrics.filterSpeed == null ? "NULL" : metrics.filterSpeed},
+             "solitonTds" = ${metrics.tds == null ? "NULL" : metrics.tds},
+             "solitonQualityValue" = ${metrics.qualityValue == null ? "NULL" : metrics.qualityValue},
+             "solitonMetricsDate" = ${
+               metricsDate
+                 ? `'${String(metricsDate).replace(/'/g, "''")}'`
+                 : "NULL"
+             },
              "solitonMetricsAt" = NOW(),
              "updatedAt" = NOW()
-         WHERE id = $5`,
-        metrics.filterSpeed,
-        metrics.tds,
-        metrics.qualityValue,
-        metricsDate,
-        m.id
+         WHERE id = ${Number(m.id)}`
       );
       updated += 1;
     } catch (error) {

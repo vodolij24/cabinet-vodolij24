@@ -5,7 +5,8 @@ import { requireApprovedAccess } from "@/lib/cabinet-access";
 import { getMachineCashboxMap } from "@/lib/machine-cashbox";
 import { getMachineTodayStatsMap } from "@/lib/machine-today-stats";
 import { getMachineWaterMetricsMap } from "@/lib/soliton-water-metrics";
-import { kyivTodayBounds } from "@/lib/kyiv-date";
+import { getLastSolitonSyncAt } from "@/lib/soliton-sync";
+import { kyivDateLabel, kyivTimeLabel, kyivTodayBounds } from "@/lib/kyiv-date";
 import { MachinesClient } from "./components/machines-client";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function MachinesPage() {
   await requireApprovedAccess();
 
-  const [machines, technicianWorkers, todayStats] = await Promise.all([
+  const [machines, technicianWorkers, todayStats, lastSolitonAt] = await Promise.all([
     prismadb.vending_machines.findMany({
       orderBy: { id: "asc" },
       include: {
@@ -29,6 +30,7 @@ export default async function MachinesPage() {
       select: { id: true, name: true, phone: true },
     }),
     getMachineTodayStatsMap(),
+    getLastSolitonSyncAt(),
   ]);
 
   const deviceIds = machines.map((m) => m.id);
@@ -54,6 +56,7 @@ export default async function MachinesPage() {
       todayCashless: stats?.cashless ?? 0,
       cashInMachine: cashbox?.cashInMachine ?? 0,
       lastCollectionDate: cashbox?.lastCollectionDate ?? null,
+      lastCollectionMs: cashbox?.lastCollectionMs ?? null,
       lastCollectionSum: cashbox?.lastCollectionSum ?? null,
       filterSpeed: water?.filterSpeed ?? null,
       waterTds: water?.tds ?? null,
@@ -72,10 +75,19 @@ export default async function MachinesPage() {
       <div className="flex-1 space-y-4 p-8 pt-6">
         <Heading
           title="Облік автоматів"
-          description="Локація з Soliton. Каса з collections. Швидкість фільтрації та TDS — кеш Soliton (кнопка «Оновити з Soliton»)."
+          description="Локація, TDS і датчики — кеш Soliton (щоночі о 03:00). Каса з інкасацій."
         />
         <Separator />
-        <MachinesClient machines={rows} technicians={technicians} todayLabel={dayKey} />
+        <MachinesClient
+          machines={rows}
+          technicians={technicians}
+          todayLabel={dayKey}
+          lastSolitonSync={
+            lastSolitonAt
+              ? `${kyivDateLabel(lastSolitonAt)} ${kyivTimeLabel(lastSolitonAt)}`
+              : null
+          }
+        />
       </div>
     </div>
   );

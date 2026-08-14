@@ -185,3 +185,39 @@ export function kyivCustomPeriodBounds(fromKey: string, toKey: string) {
     toKey,
   };
 }
+
+export type StatementPeriodPreset =
+  | "day"
+  | "week"
+  | "mtd"
+  | "month"
+  | "custom";
+
+export const STATEMENT_PERIOD_PRESETS: {
+  value: StatementPeriodPreset;
+  label: string;
+}[] = [
+  { value: "day", label: "День" },
+  { value: "week", label: "Тиждень" },
+  { value: "mtd", label: "Від початку місяця" },
+  { value: "month", label: "Місяць" },
+  { value: "custom", label: "З дати по дату" },
+];
+
+export function kyivStatementPeriodBounds(
+  preset: Exclude<StatementPeriodPreset, "custom">,
+  now = new Date()
+) {
+  if (preset === "mtd") {
+    const dayKey = kyivDayKey(now);
+    const [y, month] = dayKey.split("-").map(Number);
+    const fromKey = `${y}-${String(month).padStart(2, "0")}-01`;
+    return {
+      from: utcFromKyivLocal(fromKey, 0, 0, 0, 0),
+      to: utcFromKyivLocal(dayKey, 23, 59, 59, 999),
+      fromKey,
+      toKey: dayKey,
+    };
+  }
+  return kyivPeriodBounds(preset, now);
+}

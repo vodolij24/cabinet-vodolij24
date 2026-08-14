@@ -15,6 +15,34 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+function looksLikeName(value: string | null | undefined): value is string {
+  const s = value?.trim() || "";
+  if (s.length < 2) return false;
+  if (/^\d+$/.test(s)) return false;
+  if (s.startsWith("{") || s.startsWith("[")) return false;
+  return true;
+}
+
+function botClientName(
+  apiName: string | null | undefined,
+  bot: {
+    firstname: string | null;
+    lastname: string | null;
+    fathersname: string | null;
+  } | null
+): string | null {
+  if (looksLikeName(apiName)) return apiName.trim();
+  if (bot && looksLikeName(bot.firstname) && looksLikeName(bot.lastname)) {
+    const full = [bot.lastname, bot.firstname, bot.fathersname]
+      .filter((p) => looksLikeName(p))
+      .join(" ")
+      .trim();
+    if (full) return full;
+  }
+  if (bot && looksLikeName(bot.firstname)) return bot.firstname.trim();
+  return null;
+}
+
 /** Суми по автоматах за поточний день (Europe/Kyiv) з таблиці transactions */
 export async function getMachineTodayStatsMap(): Promise<
   Map<number, MachineTodayStats>
@@ -69,14 +97,15 @@ export type MachineTodayTransaction = {
 
 export async function getMachineTodayTransactions(
   deviceId: number,
-  filter: MachineTxFilter = "all"
+  filter: MachineTxFilter = "all",
+  range?: { from: Date; to: Date }
 ): Promise<MachineTodayTransaction[]> {
-  const { from, to } = kyivTodayBounds();
+  const bounds = range ?? kyivTodayBounds();
 
   const rows = await prismadb.transactions.findMany({
     where: {
       device: deviceId,
-      date: { gte: from, lte: to },
+      date: { gte: bounds.from, lte: bounds.to },
       ...(filter === "cash"
         ? { cashPaymant: { gt: 0 } }
         : filter === "cashless"
@@ -151,20 +180,13 @@ export async function getMachineTodayTransactions(
     for (const api of apiUsers) {
       if (api.cardId == null) continue;
       const bot = userByChat.get(api.chat_id.toString());
-      const botName = bot
-        ? [bot.lastname, bot.firstname, bot.fathersname]
-            .filter(Boolean)
-            .join(" ")
-            .trim()
-        : "";
       ownerByCardId.set(api.cardId, {
-        name: botName || api.name || null,
-        phone: bot?.phone || api.phone || null,
+        name: botClientName(api.name, bot),
+        phone: (bot?.phone || api.phone || "").trim() || null,
         cardNumber: cardNumberById.get(api.cardId) || null,
       });
     }
 
-    // Картки без Apiusers — хоча б номер з cards
     for (const id of cardIds) {
       if (ownerByCardId.has(id)) continue;
       const num = cardNumberById.get(id);
@@ -182,9 +204,8 @@ export async function getMachineTodayTransactions(
     const cash = roundMoney(row.cashPaymant || 0);
     const card = roundMoney(row.cardPaymant || 0);
     const online = roundMoney(row.onlinePaymant || 0);
-    const hasCardPayment = card > 0 || online > 0;
     const owner =
-      hasCardPayment && row.cardId != null && row.cardId > 0
+      row.cardId != null && row.cardId > 0
         ? ownerByCardId.get(row.cardId) || null
         : null;
 

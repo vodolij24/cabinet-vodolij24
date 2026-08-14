@@ -15,6 +15,7 @@ export type CashierPublicHandover = {
   createdAt: string;
   dateLabel: string;
   timeLabel: string;
+  recountClosed: boolean;
 };
 
 export type CashierPublicTechnician = {
@@ -123,8 +124,43 @@ export async function getCashierPublicPage(
       createdAt: h.createdAt.toISOString(),
       dateLabel: kyivDateLabel(h.createdAt),
       timeLabel: kyivTimeLabel(h.createdAt),
+      recountClosed: h.recountClosedAt != null,
     })),
   };
+}
+
+type PackageRow = {
+  id: number;
+  machine: string;
+  date: Date;
+  total_sum: unknown;
+  sum_coins: unknown;
+  sum_banknotes: unknown;
+  actualReceived: unknown;
+  recountStatus: string | null;
+  handoverId: number;
+  technicianId: number | null;
+};
+
+function mapPackageRows(
+  rows: PackageRow[],
+  techById: Map<number, string | null>
+): CashierPublicPackage[] {
+  return rows.map((r) => ({
+    id: r.id,
+    machine: r.machine || "—",
+    technicianName:
+      (r.technicianId != null ? techById.get(r.technicianId) : null) || "—",
+    dateLabel: kyivDateLabel(r.date),
+    timeLabel: kyivTimeLabel(r.date),
+    sumCoins: decimalToNumber(r.sum_coins),
+    sumBanknotes: decimalToNumber(r.sum_banknotes),
+    total: decimalToNumber(r.total_sum),
+    actualReceived:
+      r.actualReceived == null ? null : decimalToNumber(r.actualReceived),
+    recountStatus: r.recountStatus,
+    handoverId: r.handoverId,
+  }));
 }
 
 async function loadCashierPackages(
@@ -132,20 +168,7 @@ async function loadCashierPackages(
   techById: Map<number, string | null>
 ): Promise<CashierPublicPackage[]> {
   try {
-    const rows = await prismadb.$queryRawUnsafe<
-      Array<{
-        id: number;
-        machine: string;
-        date: Date;
-        total_sum: unknown;
-        sum_coins: unknown;
-        sum_banknotes: unknown;
-        actualReceived: unknown;
-        recountStatus: string | null;
-        handoverId: number;
-        technicianId: number | null;
-      }>
-    >(
+    const rows = await prismadb.$queryRawUnsafe<PackageRow[]>(
       `SELECT c.id, c.machine, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
               c."actualReceived", c."recountStatus", c."handoverId", c."technicianId"
        FROM collections c
@@ -154,24 +177,58 @@ async function loadCashierPackages(
          AND h.recount_closed_at IS NULL
        ORDER BY c.date DESC`
     );
-    return rows.map((r) => ({
-      id: r.id,
-      machine: r.machine || "—",
-      technicianName:
-        (r.technicianId != null ? techById.get(r.technicianId) : null) ||
-        "—",
-      dateLabel: kyivDateLabel(r.date),
-      timeLabel: kyivTimeLabel(r.date),
-      sumCoins: decimalToNumber(r.sum_coins),
-      sumBanknotes: decimalToNumber(r.sum_banknotes),
-      total: decimalToNumber(r.total_sum),
-      actualReceived:
-        r.actualReceived == null ? null : decimalToNumber(r.actualReceived),
-      recountStatus: r.recountStatus,
-      handoverId: r.handoverId,
-    }));
+    return mapPackageRows(rows, techById);
   } catch (error) {
     console.error("[CASHIER_PACKAGES]", error);
     return [];
   }
+}
+
+export async function loadHandoverPackagesForCashier(
+  cashierId: number,
+  handoverId: number
+): Promise<CashierPublicPackage[] | null> {
+  if (
+    !Number.isInteger(cashierId) ||
+    cashierId <= 0 ||
+    !Number.isInteger(handoverId) ||
+    handoverId <= 0
+  ) {
+    return null;
+  }
+
+  const owned = await prismadb.$queryRawUnsafe<Array<{ id: number }>>(
+    `SELECT id FROM collection_handovers
+     WHERE id = ${handoverId} AND cashier_id = ${cashierId}
+     LIMIT 1`
+  );
+  if (!owned[0]) return null;
+
+  const rows = await prismadb.$queryRawUnsafe<PackageRow[]>(
+    `SELECT c.id, c.machine, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
+            c."actualReceived", c."recountStatus", c."handoverId", c."technicianId"
+     FROM collections c
+     WHERE c."handoverId" = ${handoverId}
+     ORDER BY c.machine, c.date DESC`
+  );
+
+  const extraIds = [
+    ...new Set(
+      rows
+        .map((r) => r.technicianId)
+        .filter((id): id is number => id != null)
+    ),
+  ];
+  const techById = new Map<number, string | null>();
+  if (extraIds.length > 0) {
+    const extra = await prismadb.workers.findMany({
+      where: { id: { in: extraIds } },
+      select: { id: true, name: true },
+    });
+    for (const t of extra) {
+      techById.set(t.id, t.name);
+    }
+  }
+
+  return mapPackageRows(rows, techById);
 }

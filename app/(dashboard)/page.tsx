@@ -12,6 +12,9 @@ import {
   LowBotDevicesCard,
 } from "@/components/dashboard-insight-cards";
 import { getCashOnHandSnapshot } from "@/lib/cash-on-hand";
+import { getLastSolitonSyncAt } from "@/lib/soliton-sync";
+import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
+import { SolitonRefreshButton } from "@/components/soliton-refresh-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,18 +26,32 @@ const DashboardPage = async () => {
     botSuccess30Days,
     insightCards,
     cashOnHand,
+    lastSolitonAt,
   ] = await Promise.all([
     getGraphRevenue(),
     getWaterLast30Days(),
     getBotSuccessLast30Days(),
     getDashboardInsightCards(),
     getCashOnHandSnapshot(),
+    getLastSolitonSyncAt(),
   ]);
 
   return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <Heading title="Аналітика" description="Підсумок данних" />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <Heading
+            title="Аналітика"
+            description="Підсумок даних. Soliton оновлюється щоночі о 03:00."
+          />
+          <SolitonRefreshButton
+            lastSyncAt={
+              lastSolitonAt
+                ? `${kyivDateLabel(lastSolitonAt)} ${kyivTimeLabel(lastSolitonAt)}`
+                : null
+            }
+          />
+        </div>
         <Separator />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

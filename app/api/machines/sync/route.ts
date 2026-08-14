@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 
 import { assertApprovedAccess } from "@/lib/cabinet-access";
-import { syncMachinesFromSoliton } from "@/lib/soliton-devices";
-import { syncWaterMetricsFromSoliton } from "@/lib/soliton-water-metrics";
+import { runSolitonSync } from "@/lib/soliton-sync";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export async function POST() {
   try {
     await assertApprovedAccess();
-    const devices = await syncMachinesFromSoliton();
-    const metrics = await syncWaterMetricsFromSoliton();
-    return NextResponse.json({ ...devices, metrics });
+    const result = await runSolitonSync();
+    return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "UNAUTHORIZED") {

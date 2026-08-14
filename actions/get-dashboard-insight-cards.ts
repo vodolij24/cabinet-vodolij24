@@ -7,6 +7,7 @@ import {
   startOfDay,
   subDays,
 } from "date-fns";
+import { kyivCustomPeriodBounds, kyivDayKey } from "@/lib/kyiv-date";
 
 export type LowBotDevice = {
   deviceId: number;
@@ -62,24 +63,45 @@ function pct(part: number, whole: number): number {
 const BOT_TARGET = 25;
 const CASH_TARGET_MAX = 40;
 
+function shiftDayKey(dayKey: string, days: number): string {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return [
+    dt.getUTCFullYear(),
+    String(dt.getUTCMonth() + 1).padStart(2, "0"),
+    String(dt.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 export const getDashboardInsightCards =
   async (): Promise<DashboardInsightCards> => {
     const end = startOfDay(subDays(new Date(), 2));
     const start = subDays(end, 29);
-    const endExclusive = addDays(end, 1);
     const fetchFrom = subDays(start, 3);
     const fetchTo = addDays(end, 3);
 
     const startKey = format(start, "yyyy-MM-dd");
     const endKey = format(end, "yyyy-MM-dd");
 
-    const [networkGrouped, botRows, dailyStats, botSnapshots] =
+    const toKey = kyivDayKey();
+    const fromKey = shiftDayKey(toKey, -29);
+    const liveBounds = kyivCustomPeriodBounds(fromKey, toKey);
+
+    const botCardRows = await prismadb.apiusers.findMany({
+      where: { cardId: { not: null, gt: 0 } },
+      select: { cardId: true },
+    });
+    const botCardIds = botCardRows
+      .map((r) => r.cardId)
+      .filter((id): id is number => id != null && id > 0);
+
+    const [networkGrouped, botGrouped, dailyStats, botSnapshots] =
       await Promise.all([
         prismadb.transactions.groupBy({
           by: ["device"],
-          where: {
-            date: { gte: start, lt: endExclusive },
-          },
+          where: liveBounds
+            ? { date: { gte: liveBounds.from, lte: liveBounds.to } }
+            : { date: { gte: start, lt: addDays(end, 1) } },
           _sum: {
             waterFullfilled: true,
             cashPaymant: true,
@@ -87,17 +109,23 @@ export const getDashboardInsightCards =
             onlinePaymant: true,
           },
         }),
-        // date — рядок; беремо з запасом і фільтруємо в JS
-        prismadb.bot_transactions.findMany({
-          where: {
-            date: { gte: startKey },
-          },
-          select: {
-            device: true,
-            date: true,
-            waterFullfilled: true,
-          },
-        }),
+        botCardIds.length > 0
+          ? prismadb.transactions.groupBy({
+              by: ["device"],
+              where: {
+                cardId: { in: botCardIds },
+                ...(liveBounds
+                  ? { date: { gte: liveBounds.from, lte: liveBounds.to } }
+                  : { date: { gte: start, lt: addDays(end, 1) } }),
+              },
+              _sum: { waterFullfilled: true },
+            })
+          : Promise.resolve(
+              [] as Array<{
+                device: number;
+                _sum: { waterFullfilled: number | null };
+              }>
+            ),
         prismadb.daily_statistics.findMany({
           where: { createdAt: { gte: fetchFrom, lt: fetchTo } },
           select: {
@@ -115,13 +143,10 @@ export const getDashboardInsightCards =
       ]);
 
     const botWaterByDevice = new Map<number, number>();
-    for (const row of botRows) {
-      const key = toDayKey(row.date);
-      if (!key || key < startKey || key > endKey) continue;
-      const prev = botWaterByDevice.get(row.device) || 0;
+    for (const row of botGrouped) {
       botWaterByDevice.set(
         row.device,
-        prev + Math.round(row.waterFullfilled || 0)
+        Math.round(row._sum.waterFullfilled || 0)
       );
     }
 
@@ -137,7 +162,7 @@ export const getDashboardInsightCards =
         deviceId: row.device,
         networkWater,
         botWater,
-        botShare: pct(botWater, networkWater),
+        botShare: pct(Math.min(botWater, networkWater), networkWater),
         cash,
         totalPaid,
         cashShare: pct(cash, totalPaid),

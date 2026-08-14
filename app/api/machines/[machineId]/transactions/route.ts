@@ -5,6 +5,11 @@ import {
   getMachineTodayTransactions,
   type MachineTxFilter,
 } from "@/lib/machine-today-stats";
+import {
+  kyivCustomPeriodBounds,
+  kyivStatementPeriodBounds,
+  type StatementPeriodPreset,
+} from "@/lib/kyiv-date";
 
 function accessErrorResponse(error: unknown) {
   const message = error instanceof Error ? error.message : "";
@@ -22,6 +27,19 @@ function parseFilter(raw: string | null): MachineTxFilter {
   return "all";
 }
 
+function parsePeriod(raw: string | null): StatementPeriodPreset {
+  if (
+    raw === "day" ||
+    raw === "week" ||
+    raw === "mtd" ||
+    raw === "month" ||
+    raw === "custom"
+  ) {
+    return raw;
+  }
+  return "day";
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ machineId: string }> }
@@ -36,12 +54,50 @@ export async function GET(
 
     const { searchParams } = new URL(req.url);
     const filter = parseFilter(searchParams.get("filter"));
-    const rows = await getMachineTodayTransactions(id, filter);
+    const period = parsePeriod(searchParams.get("period"));
+    const bounds =
+      period === "custom"
+        ? kyivCustomPeriodBounds(
+            searchParams.get("from") || "",
+            searchParams.get("to") || ""
+          )
+        : kyivStatementPeriodBounds(period);
+
+    if (!bounds) {
+      return new NextResponse("Некоректний період", { status: 400 });
+    }
+
+    const rows = await getMachineTodayTransactions(id, filter, {
+      from: bounds.from,
+      to: bounds.to,
+    });
+
+    const totals = rows.reduce(
+      (acc, row) => {
+        acc.liters += row.liters;
+        acc.cash += row.cash;
+        acc.cashless += row.cashless;
+        return acc;
+      },
+      { liters: 0, cash: 0, cashless: 0 }
+    );
 
     return NextResponse.json({
       deviceId: id,
       filter,
+      period,
+      fromKey: bounds.fromKey,
+      toKey: bounds.toKey,
+      rangeLabel:
+        bounds.fromKey === bounds.toKey
+          ? bounds.fromKey
+          : `${bounds.fromKey} – ${bounds.toKey}`,
       count: rows.length,
+      totals: {
+        liters: Math.round(totals.liters * 10) / 10,
+        cash: Math.round(totals.cash * 100) / 100,
+        cashless: Math.round(totals.cashless * 100) / 100,
+      },
       transactions: rows,
     });
   } catch (error) {
