@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -86,6 +86,18 @@ function num(v: string | number) {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0;
 }
 
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+type BalLine = {
+  label: string;
+  amount: number;
+  hint?: string;
+  indent?: boolean;
+  skipSum?: boolean;
+};
+
 export function PnlClient({ initial }: { initial: PnlPage }) {
   const router = useRouter();
   const [data, setData] = useState(initial);
@@ -154,7 +166,111 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
     }
   };
 
-  const profit = data.totals.operatingProfit;
+  const live = useMemo(() => {
+    const income: BalLine[] = [
+      {
+        label: "Виторг готівка",
+        amount: data.computed.cashRevenue,
+        hint: "автомати · БД",
+      },
+      {
+        label: "Виторг безготівка",
+        amount: data.computed.cashlessRevenue,
+        hint: "автомати · БД",
+      },
+      { label: "Інші доходи", amount: manual.otherIncome, hint: "вручну" },
+      { label: "Готівка Кміть", amount: manual.kmitCash, hint: "вручну" },
+      {
+        label: PNL_SHEET_LABELS.kmitBn,
+        amount: sheetDraft.kmitBn.amount ?? 0,
+        hint: "таблиця",
+      },
+      {
+        label: PNL_SHEET_LABELS.pozdnyakovaBn,
+        amount: sheetDraft.pozdnyakovaBn.amount ?? 0,
+        hint: "таблиця",
+      },
+    ];
+    const expenses: BalLine[] = [
+      {
+        label: "Паливо",
+        amount: data.computed.fuel,
+        hint: "витрати техніків · БД",
+      },
+      {
+        label: "Поточні витрати",
+        amount: data.computed.otherExpenses,
+        hint: "витрати техніків · БД",
+      },
+      {
+        label: "Роялті 5%",
+        amount: data.computed.royalty,
+        hint: "від виторгу автоматів",
+      },
+      {
+        label: "З/П техніків",
+        amount: data.computed.techSalariesTotal,
+        hint: "ставка + премія + ручні − утримання",
+      },
+      ...data.computed.techSalaries.map(
+        (t): BalLine => ({
+          label: t.name,
+          amount: t.amount,
+          indent: true,
+          skipSum: true,
+        })
+      ),
+      { label: "Загальна оренда", amount: manual.rentTotal, hint: "вручну" },
+      {
+        label: "З/П Володимир склад",
+        amount: manual.salaryVolodymyr,
+        hint: "вручну",
+      },
+      {
+        label: "З/П Теребинець",
+        amount: manual.salaryTerebenets,
+        hint: "вручну",
+      },
+      { label: "Маркетинг", amount: manual.marketing, hint: "вручну" },
+      {
+        label: "Сімкарти автомати + підтримка",
+        amount: manual.simCards,
+        hint: "вручну",
+      },
+      { label: "Амортизація авто", amount: staticCosts.amortAuto },
+      { label: "Витрати фільтра", amount: staticCosts.filterCost },
+      { label: "Вчасно", amount: staticCosts.vchasno },
+      { label: "З/П колцентру", amount: staticCosts.salaryCallcenter },
+      { label: "З/П техдір", amount: staticCosts.salaryTechdir },
+      { label: "З/П фін менеджер", amount: staticCosts.salaryFinmanager },
+      { label: "З/П лічильники Олена", amount: staticCosts.salaryOlena },
+      {
+        label: PNL_SHEET_LABELS.utilities,
+        amount: sheetDraft.utilities.amount ?? 0,
+        hint: "таблиця",
+      },
+      {
+        label: PNL_SHEET_LABELS.taxes,
+        amount: sheetDraft.taxes.amount ?? 0,
+        hint: "таблиця",
+      },
+    ];
+    const incomeTotal = round2(
+      income.reduce((s, r) => s + (r.skipSum ? 0 : r.amount), 0)
+    );
+    const expenseTotal = round2(
+      expenses.reduce((s, r) => s + (r.skipSum ? 0 : r.amount), 0)
+    );
+    return {
+      income,
+      expenses,
+      incomeTotal,
+      expenseTotal,
+      profit: round2(incomeTotal - expenseTotal),
+    };
+  }, [data.computed, manual, staticCosts, sheetDraft]);
+
+  const profit = live.profit;
 
   return (
     <div className="space-y-6">
@@ -187,7 +303,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
           <p className="text-xs text-muted-foreground">Операційний прибуток</p>
           <p className="text-2xl font-semibold tabular-nums">{money(profit)}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Доходи {money(data.totals.income)} · витрати {money(data.totals.expenses)}
+            Доходи {money(live.incomeTotal)} · витрати {money(live.expenseTotal)}
           </p>
         </div>
       </div>
@@ -513,7 +629,150 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
           })}
         </div>
       </section>
+
+      <BalanceTable live={live} />
     </div>
+  );
+}
+
+function BalanceColumn({
+  title,
+  totalLabel,
+  rows,
+  total,
+  tone,
+}: {
+  title: string;
+  totalLabel: string;
+  rows: BalLine[];
+  total: number;
+  tone: "income" | "expense";
+}) {
+  const head =
+    tone === "income"
+      ? "bg-emerald-600 text-white"
+      : "bg-rose-600 text-white";
+  const wrap =
+    tone === "income"
+      ? "border-emerald-200 dark:border-emerald-900"
+      : "border-rose-200 dark:border-rose-900";
+  const sumRow =
+    tone === "income"
+      ? "bg-emerald-100 text-emerald-950 dark:bg-emerald-950/70 dark:text-emerald-100"
+      : "bg-rose-100 text-rose-950 dark:bg-rose-950/70 dark:text-rose-100";
+  const amountClass =
+    tone === "income"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : "text-rose-700 dark:text-rose-300";
+
+  return (
+    <div className={`overflow-hidden rounded-xl border ${wrap}`}>
+      <div className={`px-4 py-2.5 text-sm font-semibold ${head}`}>{title}</div>
+      <table className="w-full text-sm">
+        <tbody>
+          {rows.map((row, i) => (
+            <tr
+              key={`${row.label}-${i}`}
+              className={
+                row.indent
+                  ? "bg-muted/30 text-muted-foreground"
+                  : "odd:bg-background even:bg-muted/20"
+              }
+            >
+              <td
+                className={`py-1.5 pr-2 ${row.indent ? "pl-8" : "pl-4"} align-top`}
+              >
+                <span>{row.label}</span>
+                {row.hint ? (
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    · {row.hint}
+                  </span>
+                ) : null}
+              </td>
+              <td
+                className={`py-1.5 pr-4 text-right tabular-nums ${
+                  row.indent ? "" : amountClass
+                } ${row.amount === 0 && !row.indent ? "opacity-40" : ""}`}
+              >
+                {money(row.amount)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className={sumRow}>
+            <td className="px-4 py-2.5 font-semibold">{totalLabel}</td>
+            <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+              {money(total)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+function BalanceTable({
+  live,
+}: {
+  live: {
+    income: BalLine[];
+    expenses: BalLine[];
+    incomeTotal: number;
+    expenseTotal: number;
+    profit: number;
+  };
+}) {
+  const profitOk = live.profit >= 0;
+  return (
+    <section className="space-y-3">
+      <div>
+        <h3 className="font-medium">Баланс місяця</h3>
+        <p className="text-sm text-muted-foreground">
+          Ліва колонка — доходи, права — витрати. Операційний прибуток = разом
+          доходів − разом витрат.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <BalanceColumn
+          title="Доходи"
+          totalLabel="Разом доходів"
+          rows={live.income}
+          total={live.incomeTotal}
+          tone="income"
+        />
+        <BalanceColumn
+          title="Витрати"
+          totalLabel="Разом витрат"
+          rows={live.expenses}
+          total={live.expenseTotal}
+          tone="expense"
+        />
+      </div>
+      <div
+        className={`flex flex-wrap items-end justify-between gap-3 rounded-xl border px-4 py-4 ${
+          profitOk
+            ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
+            : "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40"
+        }`}
+      >
+        <div>
+          <p className="text-sm font-medium">Операційний прибуток (баланс)</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {money(live.incomeTotal)} − {money(live.expenseTotal)}
+          </p>
+        </div>
+        <p
+          className={`text-2xl font-semibold tabular-nums ${
+            profitOk
+              ? "text-emerald-700 dark:text-emerald-300"
+              : "text-rose-700 dark:text-rose-300"
+          }`}
+        >
+          {money(live.profit)}
+        </p>
+      </div>
+    </section>
   );
 }
 
