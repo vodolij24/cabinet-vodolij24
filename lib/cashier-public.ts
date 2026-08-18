@@ -3,6 +3,8 @@ import { digitsOnlyPhone } from "@/lib/phone";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 import { listHandovers } from "@/lib/collection-handovers";
 import { decimalToNumber } from "@/lib/collection-fields";
+import { listTickets } from "@/lib/tickets";
+import type { TicketThread } from "@/lib/ticket-types";
 
 export type CashierPublicHandover = {
   id: number;
@@ -46,6 +48,8 @@ export type CashierPublicPage = {
   technicians: CashierPublicTechnician[];
   handovers: CashierPublicHandover[];
   packages: CashierPublicPackage[];
+  tickets: TicketThread[];
+  openTicketCollectionIds: number[];
 };
 
 export async function findCashierByPhoneDigits(phoneDigits: string) {
@@ -69,7 +73,7 @@ export async function getCashierPublicPage(
   const cashier = await findCashierByPhoneDigits(phoneDigits);
   if (!cashier) return null;
 
-  const [technicians, handovers] = await Promise.all([
+  const [technicians, handovers, tickets] = await Promise.all([
     prismadb.workers.findMany({
       where: {
         role: "technician",
@@ -81,6 +85,13 @@ export async function getCashierPublicPage(
     listHandovers(cashier.id).catch((error) => {
       console.error("[CASHIER_HANDOVERS_LIST]", error);
       return [] as Awaited<ReturnType<typeof listHandovers>>;
+    }),
+    listTickets({
+      status: "open",
+      cashierId: cashier.id,
+    }).catch((error) => {
+      console.error("[CASHIER_TICKETS]", error);
+      return [] as TicketThread[];
     }),
   ]);
 
@@ -113,6 +124,8 @@ export async function getCashierPublicPage(
       name: t.name || `Технік #${t.id}`,
     })),
     packages: await loadCashierPackages(cashier.id, techById),
+    tickets,
+    openTicketCollectionIds: tickets.map((t) => t.collectionId),
     handovers: handovers.map((h) => ({
       id: h.id,
       technicianId: h.technicianId,

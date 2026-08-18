@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/table-core";
+import { MessageCircle } from "lucide-react";
 
 import type { RecountAlert } from "@/lib/collection-alert";
 
@@ -39,6 +40,7 @@ export type CollectionColumn = {
   difference: number | null;
   differenceLabel: string;
   alert: RecountAlert | null;
+  openTicket: boolean;
   search: string;
 };
 
@@ -46,6 +48,17 @@ export const columns: ColumnDef<CollectionColumn>[] = [
   {
     accessorKey: "machine",
     header: "Автомат",
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-1.5">
+        {row.original.openTicket ? (
+          <MessageCircle
+            className="h-4 w-4 shrink-0 text-sky-600"
+            aria-label="Відкрите звернення"
+          />
+        ) : null}
+        {row.original.machine}
+      </span>
+    ),
   },
   {
     accessorKey: "date",

@@ -17,6 +17,7 @@ import { TechnicianFinanceClient } from "./components/technician-finance-client"
 import { TechnicianMachinesClient } from "./components/technician-machines-client";
 import { getCashierPublicPage } from "@/lib/cashier-public";
 import { CashierHandoversClient } from "./components/cashier-handovers-client";
+import { TicketsBlock } from "@/components/tickets-block";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,8 @@ async function CashierPage({ phone }: { phone: string }) {
         technicians={data.technicians}
         handovers={data.handovers}
         packages={data.packages}
+        tickets={data.tickets}
+        openTicketCollectionIds={data.openTicketCollectionIds}
       />
     </main>
   );
@@ -88,6 +91,16 @@ async function ManagerPage({ phone }: { phone: string }) {
 
       <ManagerMissingClient phone={phone} events={data.missingEvents} />
 
+      <div className="mb-6">
+        <TicketsBlock
+          title="Відкриті звернення"
+          tickets={data.tickets}
+          basePath={`/api/public/manager/${phone}/tickets`}
+          canClose
+          emptyText="Немає відкритих звернень"
+        />
+      </div>
+
       <ManagerTasksClient
         phone={phone}
         pendingTasks={pendingTasks}
@@ -101,7 +114,7 @@ async function TechnicianPage({ phone }: { phone: string }) {
   const data = await getTechnicianPublicPage(phone);
   if (!data) notFound();
 
-  const { technician, machines, tasks, totalWaterLitersMonth, monthLabel } =
+  const { technician, machines, tasks, tickets, totalWaterLitersMonth, monthLabel } =
     data;
 
   const periodKey = currentPeriodKey();
@@ -151,6 +164,16 @@ async function TechnicianPage({ phone }: { phone: string }) {
           initial={finance}
           section="main"
         />
+      ) : null}
+
+      {tickets.length > 0 ? (
+        <div className="mb-6">
+          <TicketsBlock
+            title="Відкриті звернення"
+            tickets={tickets}
+            basePath={`/api/public/technician/${phone}/tickets`}
+          />
+        </div>
       ) : null}
 
       <TechnicianTasksClient

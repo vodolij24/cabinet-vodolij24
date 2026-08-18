@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageCircle } from "lucide-react";
 
 import { handoverAlert } from "@/lib/collection-alert";
 
@@ -95,6 +95,7 @@ export function HandoversList({ data }: { data: CollectionColumn[] }) {
         const open = openIds.has(group.id);
         const alert = handoverAlert(group.packages);
         const mismatch = group.claimedPackages !== group.receivedPackages;
+        const hasOpenTicket = group.packages.some((p) => p.openTicket);
         return (
           <div
             key={group.id}
@@ -111,7 +112,13 @@ export function HandoversList({ data }: { data: CollectionColumn[] }) {
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               )}
               <div className="min-w-[180px] flex-1">
-                <p className="font-medium">
+                <p className="inline-flex items-center gap-1.5 font-medium">
+                  {hasOpenTicket ? (
+                    <MessageCircle
+                      className="h-4 w-4 shrink-0 text-sky-600"
+                      aria-label="Відкрите звернення"
+                    />
+                  ) : null}
                   Здача #{group.id} · {group.technicianName}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -150,7 +157,17 @@ export function HandoversList({ data }: { data: CollectionColumn[] }) {
                   <tbody>
                     {group.packages.map((pkg) => (
                       <tr key={pkg.id} className="border-t">
-                        <td className="px-4 py-2">{pkg.machine}</td>
+                        <td className="px-4 py-2">
+                          <span className="inline-flex items-center gap-1.5">
+                            {pkg.openTicket ? (
+                              <MessageCircle
+                                className="h-4 w-4 shrink-0 text-sky-600"
+                                aria-label="Відкрите звернення"
+                              />
+                            ) : null}
+                            {pkg.machine}
+                          </span>
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {pkg.date} {pkg.time}
                         </td>

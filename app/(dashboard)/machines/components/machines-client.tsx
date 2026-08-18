@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import { Check, Pencil, Trash2, X, ArrowUp, ArrowDown } from "lucide-react";
+import { Check, Pencil, Trash2, X, ArrowUp, ArrowDown, Banknote } from "lucide-react";
 
 import { SolitonRefreshButton } from "@/components/soliton-refresh-button";
 
@@ -54,6 +54,7 @@ export type MachineRow = {
   lastCollectionDate: string | null;
   lastCollectionMs: number | null;
   lastCollectionSum: number | null;
+  collectionTaskCreatedMs: number | null;
   filterSpeed: number | null;
   waterTds: number | null;
   waterQualityValue: number | null;
@@ -113,11 +114,13 @@ function CashboxCell({
   amount,
   lastCollectionDate,
   lastCollectionSum,
+  collectionPending,
   onClick,
 }: {
   amount: number;
   lastCollectionDate: string | null;
   lastCollectionSum: number | null;
+  collectionPending?: boolean;
   onClick?: () => void;
 }) {
   const tip = lastCollectionDate
@@ -127,19 +130,28 @@ function CashboxCell({
           : ""
       }`
     : "Інкасацій немає";
+  const pendingTip = collectionPending ? "Є задача на інкасацію" : null;
 
   return (
     <button
       type="button"
       className="flex w-full flex-col items-end"
-      title={`${tip} · створити задачу`}
+      title={pendingTip ? `${pendingTip} · ${tip}` : `${tip} · створити задачу`}
       onClick={onClick}
     >
-      <Badge
-        className={`px-1.5 py-0 text-[11px] tabular-nums ${cashboxBadgeClass(amount)}`}
-      >
-        {formatMoney(amount)}
-      </Badge>
+      <div className="flex items-center justify-end gap-1">
+        {collectionPending ? (
+          <Banknote
+            className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400"
+            aria-label="Задача на інкасацію"
+          />
+        ) : null}
+        <Badge
+          className={`px-1.5 py-0 text-[11px] tabular-nums ${cashboxBadgeClass(amount)}`}
+        >
+          {formatMoney(amount)}
+        </Badge>
+      </div>
       {lastCollectionDate ? (
         <div className="max-w-[72px] truncate text-[10px] leading-tight text-muted-foreground">
           {lastCollectionDate.split(",")[0]}
@@ -444,6 +456,7 @@ export function MachinesClient({
       });
       toast.success("Задачу створено");
       setTaskOpen(false);
+      router.refresh();
     } catch (error) {
       const message =
         axios.isAxiosError(error) && typeof error.response?.data === "string"
@@ -889,6 +902,11 @@ export function MachinesClient({
                           amount={m.cashInMachine}
                           lastCollectionDate={m.lastCollectionDate}
                           lastCollectionSum={m.lastCollectionSum}
+                          collectionPending={
+                            m.collectionTaskCreatedMs != null &&
+                            (m.lastCollectionMs == null ||
+                              m.collectionTaskCreatedMs > m.lastCollectionMs)
+                          }
                         />
                       </TableCell>
                       <TableCell className="px-1 text-right">
@@ -996,6 +1014,11 @@ export function MachinesClient({
                         amount={m.cashInMachine}
                         lastCollectionDate={m.lastCollectionDate}
                         lastCollectionSum={m.lastCollectionSum}
+                        collectionPending={
+                          m.collectionTaskCreatedMs != null &&
+                          (m.lastCollectionMs == null ||
+                            m.collectionTaskCreatedMs > m.lastCollectionMs)
+                        }
                         onClick={() => openTaskDialog(m, "cash")}
                       />
                     </TableCell>

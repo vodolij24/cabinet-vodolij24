@@ -59,6 +59,11 @@ export function MainNav({
         pathname === `/collections` || pathname.startsWith(`/collections/`),
     },
     {
+      href: `/tickets`,
+      label: "Звернення",
+      active: pathname === `/tickets` || pathname.startsWith(`/tickets/`),
+    },
+    {
       href: `/settings`,
       label: "Налаштування",
       active: pathname === `/settings` || pathname.startsWith(`/settings/`),

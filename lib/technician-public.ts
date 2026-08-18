@@ -9,6 +9,8 @@ import {
   taskTypeLabel,
 } from "@/lib/task-fields";
 import { parsePhotoUrls } from "@/lib/photo-urls";
+import { listTickets } from "@/lib/tickets";
+import type { TicketThread } from "@/lib/ticket-types";
 import { getMachineCashboxMap } from "@/lib/machine-cashbox";
 import { getMachineWaterMetricsMap } from "@/lib/soliton-water-metrics";
 import { getCachedSensorsMap, type SolitonSensor } from "@/lib/soliton-sensors";
@@ -59,6 +61,7 @@ export type TechnicianPublicPage = {
   tasks: TechnicianPublicTask[];
   totalWaterLitersMonth: number;
   monthLabel: string;
+  tickets: TicketThread[];
 };
 
 export async function findTechnicianByPhoneDigits(phoneDigits: string) {
@@ -201,6 +204,13 @@ export async function getTechnicianPublicPage(
     },
     machines: rows,
     tasks,
+    tickets: await listTickets({
+      status: "open",
+      technicianId: technician.id,
+    }).catch((error) => {
+      console.error("[TECH_TICKETS]", error);
+      return [] as TicketThread[];
+    }),
     totalWaterLitersMonth,
     monthLabel,
   };

@@ -11,6 +11,8 @@ import {
 import { parsePhotoUrls } from "@/lib/photo-urls";
 import { listOpenMissingEvents } from "@/lib/collection-recount";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
+import { listTickets } from "@/lib/tickets";
+import type { TicketThread } from "@/lib/ticket-types";
 
 export type ManagerPublicTask = {
   id: number;
@@ -54,6 +56,7 @@ export type ManagerPublicPage = {
   };
   tasks: ManagerPublicTask[];
   missingEvents: ManagerPublicMissing[];
+  tickets: TicketThread[];
 };
 
 export async function findManagerByPhoneDigits(phoneDigits: string) {
@@ -139,7 +142,7 @@ export async function getManagerPublicPage(
   const manager = await findManagerByPhoneDigits(phoneDigits);
   if (!manager) return null;
 
-  const [taskRows, missingRows] = await Promise.all([
+  const [taskRows, missingRows, tickets] = await Promise.all([
     prismadb.tasks.findMany({
     where: {
       OR: [
@@ -179,6 +182,10 @@ export async function getManagerPublicPage(
     },
     }),
     listOpenMissingEvents(),
+    listTickets({ status: "open" }).catch((error) => {
+      console.error("[MANAGER_TICKETS]", error);
+      return [] as TicketThread[];
+    }),
   ]);
 
   return {
@@ -197,5 +204,6 @@ export async function getManagerPublicPage(
       dateLabel: kyivDateLabel(e.createdAt),
       timeLabel: kyivTimeLabel(e.createdAt),
     })),
+    tickets,
   };
 }

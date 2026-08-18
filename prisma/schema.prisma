@@ -508,6 +508,44 @@ model MailingFilter {
   
 }
 
+model CollectionTicket {
+  id            Int       @id @default(autoincrement())
+  collectionId  Int       @map("collection_id")
+  handoverId    Int?      @map("handover_id")
+  technicianId  Int?      @map("technician_id")
+  cashierId     Int?      @map("cashier_id")
+  machine       String
+  expectedSum   Float     @default(0) @map("expected_sum")
+  actualReceived Float?   @map("actual_received")
+  status        String    @default("open") @db.VarChar(16)
+  createdByRole String    @map("created_by_role") @db.VarChar(32)
+  createdByName String    @map("created_by_name") @db.VarChar(255)
+  createdById   String?   @map("created_by_id") @db.VarChar(255)
+  closedAt      DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedByName  String?   @map("closed_by_name") @db.VarChar(255)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([collectionId])
+  @@index([status])
+  @@index([technicianId, status])
+  @@index([cashierId, status])
+  @@map("collection_tickets")
+}
+
+model CollectionTicketMessage {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int      @map("ticket_id")
+  authorRole String   @map("author_role") @db.VarChar(32)
+  authorName String   @map("author_name") @db.VarChar(255)
+  authorId   String?  @map("author_id") @db.VarChar(255)
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([ticketId])
+  @@map("collection_ticket_messages")
+}
+
 /// Доступ до особистого кабінету (Clerk users)
 model CabinetAccess {
   id        String   @id // Clerk userId

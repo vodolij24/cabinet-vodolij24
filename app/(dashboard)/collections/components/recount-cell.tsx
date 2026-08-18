@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,9 @@ export function RecountCell({ data }: { data: CollectionColumn }) {
     }
   };
 
+  if (data.recountClosed) {
+    return <TicketFromCollection data={data} />;
+  }
   if (data.recountStatus === "missing") {
     return (
       <span className="text-sm font-medium text-rose-700 dark:text-rose-300">
@@ -80,11 +84,9 @@ export function RecountCell({ data }: { data: CollectionColumn }) {
       </span>
     );
   }
-  if (data.recountClosed || data.recountStatus === "done") {
+  if (data.recountStatus === "done") {
     return (
-      <span className="text-xs text-muted-foreground">
-        {data.recountClosed ? "Закрито" : "Перераховано"}
-      </span>
+      <span className="text-sm text-muted-foreground">Перераховано</span>
     );
   }
 
@@ -150,6 +152,81 @@ export function RecountCell({ data }: { data: CollectionColumn }) {
                 Зберегти
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function TicketFromCollection({ data }: { data: CollectionColumn }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [body, setBody] = useState("");
+
+  const submit = async () => {
+    if (!body.trim()) {
+      toast.error("Напишіть звернення");
+      return;
+    }
+    try {
+      setBusy(true);
+      await axios.post("/api/tickets", {
+        collectionId: data.id,
+        body: body.trim(),
+      });
+      toast.success(
+        data.openTicket ? "Повідомлення додано до звернення" : "Звернення відкрито"
+      );
+      setBody("");
+      setOpen(false);
+      router.refresh();
+    } catch (error) {
+      const message =
+        axios.isAxiosError(error) && typeof error.response?.data === "string"
+          ? error.response.data
+          : "Не вдалося відкрити звернення";
+      toast.error(message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+        {data.openTicket ? "Звернення" : "Написати звернення"}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Звернення · {data.machine}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              {data.date} · {data.time} · {data.technicianName}
+            </p>
+            <div className="rounded-lg border bg-muted/40 px-3 py-2 space-y-1">
+              <p>Очікувано — {data.total}</p>
+              <p>Фактично — {data.actualReceivedLabel}</p>
+              <p>Різниця — {data.differenceLabel}</p>
+            </div>
+            <Textarea
+              rows={4}
+              placeholder="Опишіть розбіжність або питання по цій інкасації…"
+              value={body}
+              disabled={busy}
+              onChange={(e) => setBody(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" disabled={busy} onClick={() => setOpen(false)}>
+              Скасувати
+            </Button>
+            <Button disabled={busy} onClick={() => void submit()}>
+              {data.openTicket ? "Надіслати" : "Відкрити звернення"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

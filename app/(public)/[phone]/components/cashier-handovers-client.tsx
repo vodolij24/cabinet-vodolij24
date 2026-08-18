@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 
+import { MessageCircle } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TicketsBlock } from "@/components/tickets-block";
 import type {
   CashierPublicHandover,
   CashierPublicPackage,
   CashierPublicTechnician,
 } from "@/lib/cashier-public";
+import type { TicketThread } from "@/lib/ticket-types";
 
 function mismatch(h: Pick<CashierPublicHandover, "claimedPackages" | "receivedPackages">) {
   return h.claimedPackages !== h.receivedPackages;
@@ -22,11 +26,15 @@ export function CashierHandoversClient({
   technicians,
   handovers,
   packages,
+  tickets = [],
+  openTicketCollectionIds = [],
 }: {
   phone: string;
   technicians: CashierPublicTechnician[];
   handovers: CashierPublicHandover[];
   packages: CashierPublicPackage[];
+  tickets?: TicketThread[];
+  openTicketCollectionIds?: number[];
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -113,6 +121,14 @@ export function CashierHandoversClient({
 
   return (
     <div className="space-y-6">
+      {tickets.length > 0 ? (
+        <TicketsBlock
+          title="Звернення по інкасаціях"
+          tickets={tickets}
+          basePath={`/api/public/cashier/${phone}/tickets`}
+        />
+      ) : null}
+
       <section className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-50 bg-sky-50/60 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
           <span className="text-sm font-medium text-sky-900 dark:text-sky-200">
@@ -237,7 +253,13 @@ export function CashierHandoversClient({
             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
               {archive.map((h) => (
                 <li key={h.id}>
-                  <HandoverCard handover={h} phone={phone} showMachines />
+                  <HandoverCard
+                    handover={h}
+                    phone={phone}
+                    showMachines
+                    openTicketIds={openTicketCollectionIds}
+                    hasOpenTicket={tickets.some((t) => t.handoverId === h.id)}
+                  />
                 </li>
               ))}
             </ul>
@@ -268,10 +290,14 @@ function HandoverCard({
   handover,
   phone,
   showMachines = false,
+  openTicketIds = [],
+  hasOpenTicket = false,
 }: {
   handover: CashierPublicHandover;
   phone?: string;
   showMachines?: boolean;
+  openTicketIds?: number[];
+  hasOpenTicket?: boolean;
 }) {
   const warn = mismatch(handover);
   const [open, setOpen] = useState(false);
@@ -303,7 +329,13 @@ function HandoverCard({
     <div className="space-y-2 px-4 py-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-medium text-slate-900 dark:text-slate-100">
+          <p className="inline-flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
+            {hasOpenTicket ? (
+              <MessageCircle
+                className="h-4 w-4 shrink-0 text-sky-600"
+                aria-label="Відкрите звернення"
+              />
+            ) : null}
             {handover.technicianName}
           </p>
           <p className="text-xs text-slate-400">
@@ -349,7 +381,10 @@ function HandoverCard({
                     key={m.machine}
                     className="rounded-xl bg-slate-50 px-3 py-3 dark:bg-slate-800/60"
                   >
-                    <p className="font-medium text-slate-900 dark:text-slate-100">
+                    <p className="flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100">
+                      {m.packages.some((p) => openTicketIds.includes(p.id)) ? (
+                        <MessageCircle className="h-4 w-4 text-sky-600" />
+                      ) : null}
                       {m.machine}
                     </p>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">

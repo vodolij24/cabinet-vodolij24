@@ -6,6 +6,7 @@ import { getMachineCashboxMap } from "@/lib/machine-cashbox";
 import { getMachineTodayStatsMap } from "@/lib/machine-today-stats";
 import { getMachineWaterMetricsMap } from "@/lib/soliton-water-metrics";
 import { getLastSolitonSyncAt } from "@/lib/soliton-sync";
+import { getOpenCollectionTaskCreatedMap } from "@/lib/machine-collection-tasks";
 import { kyivDateLabel, kyivTimeLabel, kyivTodayBounds } from "@/lib/kyiv-date";
 import { MachinesClient } from "./components/machines-client";
 
@@ -34,9 +35,10 @@ export default async function MachinesPage() {
   ]);
 
   const deviceIds = machines.map((m) => m.id);
-  const [cashboxMap, waterMetrics] = await Promise.all([
+  const [cashboxMap, waterMetrics, collectionTasks] = await Promise.all([
     getMachineCashboxMap(deviceIds),
     getMachineWaterMetricsMap(deviceIds),
+    getOpenCollectionTaskCreatedMap(deviceIds),
   ]);
   const { dayKey } = kyivTodayBounds();
 
@@ -58,6 +60,7 @@ export default async function MachinesPage() {
       lastCollectionDate: cashbox?.lastCollectionDate ?? null,
       lastCollectionMs: cashbox?.lastCollectionMs ?? null,
       lastCollectionSum: cashbox?.lastCollectionSum ?? null,
+      collectionTaskCreatedMs: collectionTasks.get(m.id) ?? null,
       filterSpeed: water?.filterSpeed ?? null,
       waterTds: water?.tds ?? null,
       waterQualityValue: water?.qualityValue ?? null,

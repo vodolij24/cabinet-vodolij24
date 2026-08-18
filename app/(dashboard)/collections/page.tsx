@@ -3,6 +3,7 @@ import { requireApprovedAccess } from "@/lib/cabinet-access";
 import { recountAlert } from "@/lib/collection-alert";
 import { decimalToNumber, machineLabel } from "@/lib/collection-fields";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
+import { getOpenTicketCollectionIds } from "@/lib/tickets";
 
 import { CollectionColumn } from "./components/columns";
 import { CollectionsClient } from "./components/client";
@@ -19,7 +20,8 @@ function money(n: number) {
 export default async function CollectionsPage() {
   await requireApprovedAccess();
 
-  const [rows, machines, technicianWorkers, cashiers] = await Promise.all([
+  const [rows, machines, technicianWorkers, cashiers, openTicketIds] =
+    await Promise.all([
     prismadb.collections.findMany({
       orderBy: { date: "desc" },
     }),
@@ -43,6 +45,10 @@ export default async function CollectionsPage() {
     prismadb.workers.findMany({
       where: { role: "cashier" },
       select: { id: true, name: true },
+    }),
+    getOpenTicketCollectionIds().catch((error) => {
+      console.error("[COLLECTION_TICKETS]", error);
+      return new Set<number>();
     }),
   ]);
 
@@ -176,6 +182,7 @@ export default async function CollectionsPage() {
       difference,
       differenceLabel: difference == null ? "—" : money(difference),
       alert,
+      openTicket: openTicketIds.has(item.id),
       search: `${machineName} ${technicianName} ${cashierName} ${item.id}`,
     };
   });
