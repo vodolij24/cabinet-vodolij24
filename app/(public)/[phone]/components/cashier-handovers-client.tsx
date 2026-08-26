@@ -438,6 +438,33 @@ function CashierPackages({
   const router = useRouter();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [actual, setActual] = useState<Record<number, string>>({});
+  const [filterTechId, setFilterTechId] = useState("");
+  const [filterDevice, setFilterDevice] = useState("");
+
+  const technicianOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const pkg of packages) {
+      if (pkg.technicianId == null) continue;
+      if (!map.has(pkg.technicianId)) {
+        map.set(pkg.technicianId, pkg.technicianName || `Технік #${pkg.technicianId}`);
+      }
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "uk"));
+  }, [packages]);
+
+  const filtered = useMemo(() => {
+    const deviceQuery = filterDevice.trim();
+    return packages.filter((pkg) => {
+      if (filterTechId && String(pkg.technicianId ?? "") !== filterTechId) {
+        return false;
+      }
+      if (!deviceQuery) return true;
+      if (pkg.deviceId == null) return false;
+      return String(pkg.deviceId).includes(deviceQuery);
+    });
+  }, [packages, filterTechId, filterDevice]);
 
   const submit = async (pkg: CashierPublicPackage, missing: boolean) => {
     const parsed = parseFloat(
@@ -476,16 +503,63 @@ function CashierPackages({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="border-b border-sky-50 bg-sky-50/60 px-4 py-3 text-sm font-medium text-sky-900 dark:border-slate-800 dark:bg-slate-900/80 dark:text-sky-200">
-        Перерахунок пакетів ({packages.length})
+      <div className="border-b border-sky-50 bg-sky-50/60 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm font-medium text-sky-900 dark:text-sky-200">
+            Перерахунок пакетів
+          </span>
+          <span className="text-xs text-slate-500">
+            {packages.length === 0
+              ? "0"
+              : filtered.length === packages.length
+                ? `${packages.length}`
+                : `${filtered.length} з ${packages.length}`}
+          </span>
+        </div>
+        {packages.length > 0 ? (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-xs text-slate-500">Технік</label>
+              <select
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                value={filterTechId}
+                onChange={(e) => setFilterTechId(e.target.value)}
+              >
+                <option value="">Усі техніки</option>
+                {technicianOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-500">№ апарата</label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="Наприклад 272"
+                value={filterDevice}
+                onChange={(e) =>
+                  setFilterDevice(e.target.value.replace(/[^\d]/g, ""))
+                }
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
       {packages.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-slate-500">
           Немає пакетів на перерахунок
         </p>
+      ) : filtered.length === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-slate-500">
+          Немає пакетів за фільтром
+        </p>
       ) : (
         <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-          {packages.map((pkg) => {
+          {filtered.map((pkg) => {
             const busy = busyId === pkg.id;
             const done = pkg.recountStatus === "done";
             const missing = pkg.recountStatus === "missing";

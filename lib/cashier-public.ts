@@ -28,6 +28,8 @@ export type CashierPublicTechnician = {
 export type CashierPublicPackage = {
   id: number;
   machine: string;
+  deviceId: number | null;
+  technicianId: number | null;
   technicianName: string;
   dateLabel: string;
   timeLabel: string;
@@ -168,6 +170,8 @@ function mapPackageRows(
   return rows.map((r) => ({
     id: r.id,
     machine: cashierMachineLabel(r.device_id, r.machine),
+    deviceId: r.device_id,
+    technicianId: r.technicianId,
     technicianName:
       (r.technicianId != null ? techById.get(r.technicianId) : null) || "—",
     dateLabel: kyivDateLabel(r.date),
