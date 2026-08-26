@@ -12,6 +12,37 @@ import { MachinesClient } from "./components/machines-client";
 
 export const dynamic = "force-dynamic";
 
+const FRANCHISE_MACHINES: Record<number, string> = {
+  272: "Тернопіль",
+  339: "Тернопіль",
+  325: "Тернопіль",
+  320: "Тернопіль",
+  271: "Тернопіль",
+  285: "Тернопіль",
+  222: "Франківськ",
+  215: "Франківськ",
+  346: "Франківськ",
+  216: "Франківськ",
+  290: "Франківськ",
+  220: "Франківськ",
+  300: "Франківськ",
+  201: "Франківськ",
+  310: "Франківськ",
+  334: "Франківськ",
+  338: "Франківськ",
+  248: "Франківськ",
+  304: "Франківськ",
+  237: "Франківськ",
+  223: "Франківськ",
+  250: "Франківськ",
+  191: "Франківськ",
+  289: "Франківськ",
+  257: "Франківськ",
+  284: "Франківськ",
+  183: "Франківськ",
+  273: "Франківськ",
+};
+
 export default async function MachinesPage() {
   await requireApprovedAccess();
 
@@ -61,6 +92,7 @@ export default async function MachinesPage() {
       lastCollectionMs: cashbox?.lastCollectionMs ?? null,
       lastCollectionSum: cashbox?.lastCollectionSum ?? null,
       collectionTaskCreatedMs: collectionTasks.get(m.id) ?? null,
+      franchise: FRANCHISE_MACHINES[m.id] ?? null,
       filterSpeed: water?.filterSpeed ?? null,
       waterTds: water?.tds ?? null,
       waterQualityValue: water?.qualityValue ?? null,

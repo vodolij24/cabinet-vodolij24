@@ -145,6 +145,7 @@ export async function getCashierPublicPage(
 type PackageRow = {
   id: number;
   machine: string;
+  device_id: number | null;
   date: Date;
   total_sum: unknown;
   sum_coins: unknown;
@@ -155,13 +156,18 @@ type PackageRow = {
   technicianId: number | null;
 };
 
+function cashierMachineLabel(deviceId: number | null, fallback: string) {
+  if (deviceId != null) return `Апарат #${deviceId}`;
+  return fallback || "—";
+}
+
 function mapPackageRows(
   rows: PackageRow[],
   techById: Map<number, string | null>
 ): CashierPublicPackage[] {
   return rows.map((r) => ({
     id: r.id,
-    machine: r.machine || "—",
+    machine: cashierMachineLabel(r.device_id, r.machine),
     technicianName:
       (r.technicianId != null ? techById.get(r.technicianId) : null) || "—",
     dateLabel: kyivDateLabel(r.date),
@@ -182,13 +188,13 @@ async function loadCashierPackages(
 ): Promise<CashierPublicPackage[]> {
   try {
     const rows = await prismadb.$queryRawUnsafe<PackageRow[]>(
-      `SELECT c.id, c.machine, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
+      `SELECT c.id, c.machine, c.device_id, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
               c."actualReceived", c."recountStatus", c."handoverId", c."technicianId"
        FROM collections c
        JOIN collection_handovers h ON h.id = c."handoverId"
        WHERE h.cashier_id = ${cashierId}
          AND h.recount_closed_at IS NULL
-       ORDER BY c.date DESC`
+       ORDER BY c.device_id NULLS LAST, c.date DESC`
     );
     return mapPackageRows(rows, techById);
   } catch (error) {
@@ -218,11 +224,11 @@ export async function loadHandoverPackagesForCashier(
   if (!owned[0]) return null;
 
   const rows = await prismadb.$queryRawUnsafe<PackageRow[]>(
-    `SELECT c.id, c.machine, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
+    `SELECT c.id, c.machine, c.device_id, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
             c."actualReceived", c."recountStatus", c."handoverId", c."technicianId"
      FROM collections c
      WHERE c."handoverId" = ${handoverId}
-     ORDER BY c.machine, c.date DESC`
+     ORDER BY c.device_id NULLS LAST, c.date DESC`
   );
 
   const extraIds = [

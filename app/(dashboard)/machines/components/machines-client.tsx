@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import { Check, Pencil, Trash2, X, ArrowUp, ArrowDown, Banknote } from "lucide-react";
+import { Check, Pencil, Trash2, X, ArrowUp, ArrowDown, Banknote, Building2 } from "lucide-react";
 
 import { SolitonRefreshButton } from "@/components/soliton-refresh-button";
 
@@ -55,6 +55,7 @@ export type MachineRow = {
   lastCollectionMs: number | null;
   lastCollectionSum: number | null;
   collectionTaskCreatedMs: number | null;
+  franchise: string | null;
   filterSpeed: number | null;
   waterTds: number | null;
   waterQualityValue: number | null;
@@ -975,9 +976,18 @@ export function MachinesClient({
                     </TableCell>
                     <TableCell
                       className="truncate px-1.5"
-                      title={m.technicianName || undefined}
+                      title={m.technicianName || m.franchise || undefined}
                     >
-                      {m.technicianName || "—"}
+                      {m.technicianName ? (
+                        m.technicianName
+                      ) : m.franchise ? (
+                        <span className="inline-flex items-center gap-1 text-slate-400">
+                          <Building2 className="h-3.5 w-3.5 shrink-0" />
+                          {m.franchise}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell className="px-1 text-right tabular-nums">
                       <button
