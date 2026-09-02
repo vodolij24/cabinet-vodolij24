@@ -559,3 +559,40 @@ model CabinetAccess {
   @@index([status])
   @@index([email])
 }
+
+/// Заявка на оплату (платіжний календар)
+model PaymentRequest {
+  id              Int       @id @default(autoincrement())
+  title           String    @db.VarChar(255)
+  description     String?
+  amount          Int
+  dueDate         DateTime  @map("due_date") @db.Date
+  /// YYYY-MM для фільтрів
+  periodKey       String    @map("period_key") @db.VarChar(16)
+  /// rent | utilities | salary | tax | supplier | other
+  category        String    @default("other") @db.VarChar(32)
+  /// urgent | normal | low
+  priority        String    @default("normal") @db.VarChar(16)
+  /// pending | approved | paid | partial | cancelled
+  status          String    @default("pending") @db.VarChar(16)
+  /// cashbox | bank | collections | other
+  fundSource      String?   @map("fund_source") @db.VarChar(32)
+  fundSourceNote  String?   @map("fund_source_note")
+  paidAt          DateTime? @map("paid_at") @db.Timestamptz(6)
+  paidAmount      Int?      @map("paid_amount")
+  paidByName      String?   @map("paid_by_name") @db.VarChar(255)
+  paidById        String?   @map("paid_by_id") @db.VarChar(255)
+  accounted       Boolean   @default(false)
+  accountedAt     DateTime? @map("accounted_at") @db.Timestamptz(6)
+  accountedByName String?   @map("accounted_by_name") @db.VarChar(255)
+  authorId        String?   @map("author_id") @db.VarChar(255)
+  authorName      String?   @map("author_name") @db.VarChar(255)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([dueDate])
+  @@index([periodKey])
+  @@index([status])
+  @@index([priority])
+  @@map("payment_requests")
+}

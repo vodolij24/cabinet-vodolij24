@@ -43,6 +43,11 @@ export function MainNav({
       active: pathname === `/finance` || pathname.startsWith(`/finance/`),
     },
     {
+      href: `/payments`,
+      label: "Платіжний календар",
+      active: pathname === `/payments` || pathname.startsWith(`/payments/`),
+    },
+    {
       href: `/pnl`,
       label: "Фін. звіт",
       active: pathname === `/pnl` || pathname.startsWith(`/pnl/`),
