@@ -22,6 +22,10 @@ import {
   type PnlSheetKind,
 } from "@/lib/pnl-constants";
 import type { PnlPage } from "@/lib/pnl-types";
+import type {
+  PaymentCalendarPnlTotals,
+  PaymentPnlTarget,
+} from "@/lib/payment-requests-shared";
 
 function money(n: number) {
   return `${n.toLocaleString("uk-UA", {
@@ -98,6 +102,23 @@ type BalLine = {
   skipSum?: boolean;
 };
 
+function calendarBalLines(
+  pc: PaymentCalendarPnlTotals,
+  target: PaymentPnlTarget
+): BalLine[] {
+  return pc.lines
+    .filter((line) => line.target === target)
+    .map((line) => ({
+      label: line.title,
+      amount: line.amount,
+      hint: `календар · ${line.categoryLabel}${
+        line.paidByName ? ` · ${line.paidByName}` : ""
+      }`,
+      indent: true,
+      skipSum: true,
+    }));
+}
+
 export function PnlClient({ initial }: { initial: PnlPage }) {
   const router = useRouter();
   const [data, setData] = useState(initial);
@@ -167,6 +188,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
   };
 
   const live = useMemo(() => {
+    const pc = data.computed.paymentCalendar;
     const income: BalLine[] = [
       {
         label: "Виторг готівка",
@@ -200,8 +222,12 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       {
         label: "Поточні витрати",
         amount: data.computed.otherExpenses,
-        hint: "витрати техніків · БД",
+        hint:
+          pc.other > 0
+            ? "техніки · БД + календар"
+            : "витрати техніків · БД",
       },
+      ...calendarBalLines(pc, "other"),
       {
         label: "Роялті 5%",
         amount: data.computed.royalty,
@@ -220,7 +246,12 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
           skipSum: true,
         })
       ),
-      { label: "Загальна оренда", amount: manual.rentTotal, hint: "вручну" },
+      {
+        label: "Загальна оренда",
+        amount: manual.rentTotal + pc.rent,
+        hint: pc.rent > 0 ? "вручну + календар" : "вручну",
+      },
+      ...calendarBalLines(pc, "rent"),
       {
         label: "З/П Володимир склад",
         amount: manual.salaryVolodymyr,
@@ -246,14 +277,16 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       { label: "З/П лічильники Олена", amount: staticCosts.salaryOlena },
       {
         label: PNL_SHEET_LABELS.utilities,
-        amount: sheetDraft.utilities.amount ?? 0,
-        hint: "таблиця",
+        amount: (sheetDraft.utilities.amount ?? 0) + pc.utilities,
+        hint: pc.utilities > 0 ? "таблиця + календар" : "таблиця",
       },
+      ...calendarBalLines(pc, "utilities"),
       {
         label: PNL_SHEET_LABELS.taxes,
-        amount: sheetDraft.taxes.amount ?? 0,
-        hint: "таблиця",
+        amount: (sheetDraft.taxes.amount ?? 0) + pc.taxes,
+        hint: pc.taxes > 0 ? "таблиця + календар" : "таблиця",
       },
+      ...calendarBalLines(pc, "taxes"),
     ];
     const incomeTotal = round2(
       income.reduce((s, r) => s + (r.skipSum ? 0 : r.amount), 0)

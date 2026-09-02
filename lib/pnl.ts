@@ -4,6 +4,8 @@ import prismadb from "@/lib/prismadb";
 import { decimalToNumber } from "@/lib/collection-fields";
 import { kyivCustomPeriodBounds } from "@/lib/kyiv-date";
 import { getFinanceMonth, isPeriodKey } from "@/lib/finance-month";
+import { listAccountedPaymentsForPnl } from "@/lib/payment-requests";
+import type { PaymentCalendarPnlTotals } from "@/lib/payment-requests-shared";
 import {
   PNL_ROYALTY_RATE,
   PNL_STATIC_DEFAULTS,
@@ -243,7 +245,12 @@ async function getComputed(periodKey: string) {
   };
 }
 
-function mapPage(periodKey: string, row: PnlRow | null, computed: Awaited<ReturnType<typeof getComputed>>): PnlPage {
+function mapPage(
+  periodKey: string,
+  row: PnlRow | null,
+  computed: Awaited<ReturnType<typeof getComputed>>,
+  paymentCalendar: PaymentCalendarPnlTotals
+): PnlPage {
   const d = PNL_STATIC_DEFAULTS;
   const manual = {
     otherIncome: moneyOr(row?.other_income),
@@ -300,8 +307,11 @@ function mapPage(periodKey: string, row: PnlRow | null, computed: Awaited<Return
 
   const kmitBn = sheets.kmitBn.amount ?? 0;
   const pozdnyakovaBn = sheets.pozdnyakovaBn.amount ?? 0;
-  const utilities = sheets.utilities.amount ?? 0;
-  const taxes = sheets.taxes.amount ?? 0;
+  const utilities = (sheets.utilities.amount ?? 0) + paymentCalendar.utilities;
+  const taxes = (sheets.taxes.amount ?? 0) + paymentCalendar.taxes;
+  const rentTotal = manual.rentTotal + paymentCalendar.rent;
+  const otherExpensesWithCalendar =
+    computed.otherExpenses + paymentCalendar.other;
 
   const income = round2(
     computed.totalRevenue +
@@ -312,10 +322,10 @@ function mapPage(periodKey: string, row: PnlRow | null, computed: Awaited<Return
   );
   const expenses = round2(
     computed.fuel +
-      computed.otherExpenses +
+      otherExpensesWithCalendar +
       computed.royalty +
       computed.techSalariesTotal +
-      manual.rentTotal +
+      rentTotal +
       manual.salaryVolodymyr +
       manual.salaryTerebenets +
       manual.marketing +
@@ -335,7 +345,11 @@ function mapPage(periodKey: string, row: PnlRow | null, computed: Awaited<Return
     periodKey,
     periodLabel: periodKeyLabel(periodKey),
     months: listPnlMonths(),
-    computed,
+    computed: {
+      ...computed,
+      otherExpenses: otherExpensesWithCalendar,
+      paymentCalendar,
+    },
     manual,
     staticCosts,
     sheets,
@@ -351,11 +365,12 @@ export async function getPnlPage(periodKey = kyivPeriodKey()): Promise<PnlPage> 
   if (!isPeriodKey(periodKey)) {
     throw new Error("Некоректний місяць");
   }
-  const [row, computed] = await Promise.all([
+  const [row, computed, paymentCalendar] = await Promise.all([
     loadRow(periodKey),
     getComputed(periodKey),
+    listAccountedPaymentsForPnl(periodKey),
   ]);
-  return mapPage(periodKey, row, computed);
+  return mapPage(periodKey, row, computed, paymentCalendar);
 }
 
 export async function savePnlManual(

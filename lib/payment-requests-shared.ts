@@ -299,3 +299,38 @@ export function paymentDueGroup(item: PaymentRequestView): PaymentDueGroup {
   if (item.dueDate > todayKey && item.dueDate <= weekEndKey) return "week";
   return "later";
 }
+
+/** Куди в фін. звіті потрапляє категорія заявки */
+export type PaymentPnlTarget = "rent" | "utilities" | "taxes" | "other";
+
+export function paymentCategoryPnlTarget(category: string): PaymentPnlTarget {
+  switch (category) {
+    case "rent":
+      return "rent";
+    case "utilities":
+      return "utilities";
+    case "tax":
+      return "taxes";
+    default:
+      return "other";
+  }
+}
+
+export type PaymentCalendarPnlLine = {
+  id: number;
+  title: string;
+  amount: number;
+  category: string;
+  categoryLabel: string;
+  target: PaymentPnlTarget;
+  paidByName: string | null;
+  paidAt: string | null;
+};
+
+export type PaymentCalendarPnlTotals = {
+  rent: number;
+  utilities: number;
+  taxes: number;
+  other: number;
+  lines: PaymentCalendarPnlLine[];
+};

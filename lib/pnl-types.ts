@@ -1,4 +1,5 @@
 import type { PnlSheetKind } from "@/lib/pnl-constants";
+import type { PaymentCalendarPnlTotals } from "@/lib/payment-requests-shared";
 
 export type PnlSheetSlot = {
   amount: number | null;
@@ -22,6 +23,7 @@ export type PnlPage = {
     royalty: number;
     techSalaries: { workerId: number; name: string; amount: number }[];
     techSalariesTotal: number;
+    paymentCalendar: PaymentCalendarPnlTotals;
   };
   manual: {
     otherIncome: number;

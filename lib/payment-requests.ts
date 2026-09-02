@@ -5,7 +5,9 @@ import { kyivDayKey } from "@/lib/kyiv-date";
 
 import {
   formatPaymentRequest,
+  paymentCategoryPnlTarget,
   paymentPeriodKey,
+  type PaymentCalendarPnlTotals,
   type PaymentRequestRow,
   type PaymentRequestView,
 } from "@/lib/payment-requests-shared";
@@ -238,3 +240,45 @@ export async function deletePaymentRequest(id: number): Promise<void> {
 }
 
 export { findPaymentById };
+
+export async function listAccountedPaymentsForPnl(
+  periodKey: string
+): Promise<PaymentCalendarPnlTotals> {
+  await ensurePaymentRequestsTable();
+  const esc = (s: string) => s.replace(/'/g, "''");
+  const rows = await prismadb.$queryRawUnsafe<RawPaymentRow[]>(`
+    SELECT * FROM payment_requests
+    WHERE accounted = true
+      AND status IN ('paid', 'partial')
+      AND period_key = '${esc(periodKey)}'
+    ORDER BY paid_at ASC NULLS LAST, id ASC
+  `);
+
+  const totals: PaymentCalendarPnlTotals = {
+    rent: 0,
+    utilities: 0,
+    taxes: 0,
+    other: 0,
+    lines: [],
+  };
+
+  for (const raw of rows) {
+    const row = mapRow(raw);
+    const view = formatPaymentRequest(row);
+    const amount = row.paidAmount ?? row.amount;
+    const target = paymentCategoryPnlTarget(row.category);
+    totals[target] += amount;
+    totals.lines.push({
+      id: row.id,
+      title: row.title,
+      amount,
+      category: row.category,
+      categoryLabel: view.categoryLabel,
+      target,
+      paidByName: row.paidByName,
+      paidAt: row.paidAt ? row.paidAt.toISOString() : null,
+    });
+  }
+
+  return totals;
+}
