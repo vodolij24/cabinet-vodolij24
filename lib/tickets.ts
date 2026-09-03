@@ -1,7 +1,10 @@
 import "server-only";
 
 import prismadb from "@/lib/prismadb";
-import { decimalToNumber } from "@/lib/collection-fields";
+import {
+  cashierMachineLabel,
+  decimalToNumber,
+} from "@/lib/collection-fields";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 import type { TicketMessage, TicketThread } from "@/lib/ticket-types";
 
@@ -233,6 +236,8 @@ async function loadCollectionContext(collectionId: number) {
     Array<{
       id: number;
       machine: string;
+      device_id: number | null;
+      location: string | null;
       total_sum: unknown;
       actualReceived: unknown;
       recountStatus: string | null;
@@ -242,10 +247,12 @@ async function loadCollectionContext(collectionId: number) {
       recount_closed_at: Date | null;
     }>
   >(
-    `SELECT c.id, c.machine, c.total_sum, c."actualReceived", c."recountStatus",
-            c."handoverId", c."technicianId", h.cashier_id, h.recount_closed_at
+    `SELECT c.id, c.machine, c.device_id, c.total_sum, c."actualReceived", c."recountStatus",
+            c."handoverId", c."technicianId", h.cashier_id, h.recount_closed_at,
+            COALESCE(NULLIF(TRIM(vm.location), ''), NULLIF(TRIM(vm.address), '')) AS location
      FROM collections c
      LEFT JOIN collection_handovers h ON h.id = c."handoverId"
+     LEFT JOIN vending_machines vm ON vm.id = c.device_id
      WHERE c.id = ${asInt(collectionId)}
      LIMIT 1`
   );
@@ -271,6 +278,11 @@ export async function createTicketFromCollection(input: {
   if (!col.recount_closed_at) throw new Error("NOT_CLOSED");
 
   await ensureTicketTables();
+  const machineLabelText = cashierMachineLabel(
+    col.device_id,
+    col.location,
+    col.machine
+  );
   const inserted = await prismadb.$queryRaw<Array<{ id: number }>>`
     INSERT INTO collection_tickets (
       collection_id, handover_id, technician_id, cashier_id, machine,
@@ -278,7 +290,7 @@ export async function createTicketFromCollection(input: {
       created_by_role, created_by_name, created_by_id, created_at, updated_at
     ) VALUES (
       ${col.id}, ${col.handoverId}, ${col.technicianId}, ${col.cashier_id},
-      ${col.machine || "—"}, ${decimalToNumber(col.total_sum)},
+      ${machineLabelText}, ${decimalToNumber(col.total_sum)},
       ${col.actualReceived == null ? null : decimalToNumber(col.actualReceived)},
       'open', ${input.author.role}, ${input.author.name}, ${input.author.id},
       NOW(), NOW()

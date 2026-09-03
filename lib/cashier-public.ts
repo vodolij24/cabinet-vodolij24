@@ -2,7 +2,10 @@ import prismadb from "@/lib/prismadb";
 import { digitsOnlyPhone } from "@/lib/phone";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 import { listHandovers } from "@/lib/collection-handovers";
-import { decimalToNumber } from "@/lib/collection-fields";
+import {
+  cashierMachineLabel,
+  decimalToNumber,
+} from "@/lib/collection-fields";
 import { listTickets } from "@/lib/tickets";
 import type { TicketThread } from "@/lib/ticket-types";
 
@@ -148,6 +151,7 @@ type PackageRow = {
   id: number;
   machine: string;
   device_id: number | null;
+  location: string | null;
   date: Date;
   total_sum: unknown;
   sum_coins: unknown;
@@ -158,18 +162,13 @@ type PackageRow = {
   technicianId: number | null;
 };
 
-function cashierMachineLabel(deviceId: number | null, fallback: string) {
-  if (deviceId != null) return `Апарат #${deviceId}`;
-  return fallback || "—";
-}
-
 function mapPackageRows(
   rows: PackageRow[],
   techById: Map<number, string | null>
 ): CashierPublicPackage[] {
   return rows.map((r) => ({
     id: r.id,
-    machine: cashierMachineLabel(r.device_id, r.machine),
+    machine: cashierMachineLabel(r.device_id, r.location, r.machine),
     deviceId: r.device_id,
     technicianId: r.technicianId,
     technicianName:
@@ -186,15 +185,19 @@ function mapPackageRows(
   }));
 }
 
+const PACKAGE_SELECT = `SELECT c.id, c.machine, c.device_id, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
+              c."actualReceived", c."recountStatus", c."handoverId", c."technicianId",
+              COALESCE(NULLIF(TRIM(vm.location), ''), NULLIF(TRIM(vm.address), '')) AS location
+       FROM collections c
+       LEFT JOIN vending_machines vm ON vm.id = c.device_id`;
+
 async function loadCashierPackages(
   cashierId: number,
   techById: Map<number, string | null>
 ): Promise<CashierPublicPackage[]> {
   try {
     const rows = await prismadb.$queryRawUnsafe<PackageRow[]>(
-      `SELECT c.id, c.machine, c.device_id, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
-              c."actualReceived", c."recountStatus", c."handoverId", c."technicianId"
-       FROM collections c
+      `${PACKAGE_SELECT}
        JOIN collection_handovers h ON h.id = c."handoverId"
        WHERE h.cashier_id = ${cashierId}
          AND h.recount_closed_at IS NULL
@@ -228,9 +231,7 @@ export async function loadHandoverPackagesForCashier(
   if (!owned[0]) return null;
 
   const rows = await prismadb.$queryRawUnsafe<PackageRow[]>(
-    `SELECT c.id, c.machine, c.device_id, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
-            c."actualReceived", c."recountStatus", c."handoverId", c."technicianId"
-     FROM collections c
+    `${PACKAGE_SELECT}
      WHERE c."handoverId" = ${handoverId}
      ORDER BY c.device_id NULLS LAST, c.date DESC`
   );
