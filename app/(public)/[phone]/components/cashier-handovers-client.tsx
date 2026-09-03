@@ -221,7 +221,13 @@ export function CashierHandoversClient({
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {current.map((h) => (
               <li key={h.id}>
-                <HandoverCard handover={h} />
+                <HandoverCard
+                  handover={h}
+                  phone={phone}
+                  allowManualPackage
+                  openTicketIds={openTicketCollectionIds}
+                  hasOpenTicket={tickets.some((t) => t.handoverId === h.id)}
+                />
               </li>
             ))}
           </ul>
@@ -289,19 +295,31 @@ function HandoverCard({
   handover,
   phone,
   showMachines = false,
+  allowManualPackage = false,
   openTicketIds = [],
   hasOpenTicket = false,
 }: {
   handover: CashierPublicHandover;
   phone?: string;
   showMachines?: boolean;
+  allowManualPackage?: boolean;
   openTicketIds?: number[];
   hasOpenTicket?: boolean;
 }) {
+  const router = useRouter();
   const warn = mismatch(handover);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<CashierPublicPackage[] | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [manualBusy, setManualBusy] = useState(false);
+
+  const needManual = Math.max(
+    0,
+    handover.receivedPackages - handover.collectionCount
+  );
 
   const loadMachines = async () => {
     if (!phone || !showMachines) return;
@@ -322,6 +340,47 @@ function HandoverCard({
     }
   };
 
+  const submitManual = async () => {
+    if (!phone) return;
+    const id = parseInt(deviceId.trim(), 10);
+    const parsed = parseFloat(
+      String(amount).replace(",", ".").replace(/\s/g, "")
+    );
+    if (!Number.isFinite(id) || id <= 0) {
+      toast.error("Вкажіть номер апарата");
+      return;
+    }
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toast.error("Вкажіть суму");
+      return;
+    }
+    try {
+      setManualBusy(true);
+      const { data } = await axios.post(
+        `/api/public/cashier/${phone}/handovers/${handover.id}/manual-package`,
+        { deviceId: id, amount: parsed }
+      );
+      toast.success(
+        data?.handoverClosed
+          ? "Пакет додано, здачу закрито"
+          : "Пакет додано без даних апарата"
+      );
+      setDeviceId("");
+      setAmount("");
+      setManualOpen(false);
+      setPackages(null);
+      router.refresh();
+    } catch (error) {
+      const message =
+        axios.isAxiosError(error) && typeof error.response?.data === "string"
+          ? error.response.data
+          : "Не вдалося додати пакет";
+      toast.error(message);
+    } finally {
+      setManualBusy(false);
+    }
+  };
+
   const machines = packages ? groupPackagesByMachine(packages) : [];
 
   return (
@@ -338,7 +397,7 @@ function HandoverCard({
             {handover.technicianName}
           </p>
           <p className="text-xs text-slate-400">
-            {handover.dateLabel} · {handover.timeLabel}
+            {handover.dateLabel} · {handover.timeLabel} · здача #{handover.id}
           </p>
         </div>
         <p className="text-sm tabular-nums text-slate-600 dark:text-slate-300">
@@ -356,7 +415,69 @@ function HandoverCard({
       </p>
       <p className="text-xs text-slate-400">
         Інкасацій у здачі: {handover.collectionCount}
+        {needManual > 0 ? (
+          <span className="ml-2 font-medium text-amber-700 dark:text-amber-300">
+            ще без даних апарата: {needManual}
+          </span>
+        ) : null}
       </p>
+
+      {allowManualPackage && phone ? (
+        <div className="pt-1">
+          <button
+            type="button"
+            className="text-sm font-medium text-amber-800 dark:text-amber-300"
+            onClick={() => setManualOpen((v) => !v)}
+          >
+            {manualOpen
+              ? "Сховати форму"
+              : "Додати пакет без даних апарата"}
+          </button>
+          {manualOpen ? (
+            <div className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
+              <p className="text-xs text-amber-900/80 dark:text-amber-200/80">
+                Якщо апарат не передав інкасацію — вкажіть № апарата і суму
+                з пакета.
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-500">№ апарата</label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Наприклад 272"
+                    value={deviceId}
+                    disabled={manualBusy}
+                    onChange={(e) =>
+                      setDeviceId(e.target.value.replace(/[^\d]/g, ""))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-500">Сума, грн</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    value={amount}
+                    disabled={manualBusy}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Button
+                size="sm"
+                disabled={manualBusy}
+                onClick={() => void submitManual()}
+              >
+                Зберегти пакет
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {showMachines && phone ? (
         <div className="pt-1">
           <button
@@ -398,11 +519,13 @@ function HandoverCard({
                       {m.packages.map((pkg) => (
                         <li key={pkg.id}>
                           {pkg.dateLabel} {pkg.timeLabel}
-                          {pkg.recountStatus === "missing"
-                            ? " · відсутній"
-                            : pkg.recountStatus === "done"
-                              ? " · перераховано"
-                              : ""}
+                          {pkg.noDeviceData
+                            ? " · без даних апарата"
+                            : pkg.recountStatus === "missing"
+                              ? " · відсутній"
+                              : pkg.recountStatus === "done"
+                                ? " · перераховано"
+                                : ""}
                         </li>
                       ))}
                     </ul>

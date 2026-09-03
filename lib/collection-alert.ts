@@ -5,8 +5,10 @@ export function recountAlert(input: {
   handedOver: boolean;
   recountStatus: string | null;
   difference: number | null;
+  noDeviceData?: boolean;
 }): RecountAlert | null {
   if (!input.handedOver) return null;
+  if (input.noDeviceData) return "warning";
   if (input.recountStatus === "missing") return "alarm";
   if (input.difference == null) return "pending";
   const abs = Math.abs(input.difference);
@@ -20,6 +22,7 @@ export function handoverAlert(
     handedOver: boolean;
     recountStatus: string | null;
     difference: number | null;
+    noDeviceData?: boolean;
   }>
 ): HandoverAlert {
   const alerts = packages.map((pkg) => recountAlert(pkg));
@@ -33,3 +36,6 @@ export function handoverAlert(
   }
   return "progress";
 }
+
+export const NO_DEVICE_DATA_WARN =
+  "Апарат не передав дані інкасації";

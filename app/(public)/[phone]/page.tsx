@@ -10,8 +10,9 @@ import {
   getTechnicianFinanceSnapshot,
 } from "@/lib/finance-month";
 import { currentPeriodKey } from "@/lib/task-fields";
-import { ManagerTasksClient } from "./components/manager-tasks-client";
 import { ManagerMissingClient } from "./components/manager-missing-client";
+import { ManagerNoDeviceDataClient } from "./components/manager-no-device-data-client";
+import { ManagerTasksClient } from "./components/manager-tasks-client";
 import { TechnicianTasksClient } from "./components/technician-tasks-client";
 import { TechnicianFinanceClient } from "./components/technician-finance-client";
 import { TechnicianMachinesClient } from "./components/technician-machines-client";
@@ -90,6 +91,7 @@ async function ManagerPage({ phone }: { phone: string }) {
       </header>
 
       <ManagerMissingClient phone={phone} events={data.missingEvents} />
+      <ManagerNoDeviceDataClient events={data.noDeviceDataEvents} />
 
       <div className="mb-6">
         <TicketsBlock

@@ -68,9 +68,14 @@ export default async function CollectionsPage() {
       actualReceived: number | null;
       recountStatus: string | null;
       recountClosed: boolean;
+      noDeviceData: boolean;
     }
   >();
   try {
+    const { ensureCollectionsNoDeviceDataColumn } = await import(
+      "@/lib/collection-handovers"
+    );
+    await ensureCollectionsNoDeviceDataColumn();
     const extraRows = await prismadb.$queryRawUnsafe<
       Array<{
         id: number;
@@ -82,9 +87,11 @@ export default async function CollectionsPage() {
         handover_at: Date | null;
         claimed_packages: number | null;
         received_packages: number | null;
+        no_device_data: boolean | null;
       }>
     >(
       `SELECT c.id, c."handoverId", c."actualReceived", c."recountStatus",
+              COALESCE(c.no_device_data, FALSE) AS no_device_data,
               h.recount_closed_at, h.cashier_id, h.created_at AS handover_at,
               h.claimed_packages, h.received_packages
        FROM collections c
@@ -103,6 +110,7 @@ export default async function CollectionsPage() {
             : decimalToNumber(row.actualReceived),
         recountStatus: row.recountStatus,
         recountClosed: Boolean(row.recount_closed_at),
+        noDeviceData: Boolean(row.no_device_data),
       });
     }
   } catch (error) {
@@ -143,6 +151,7 @@ export default async function CollectionsPage() {
       handedOver,
       recountStatus: extra?.recountStatus ?? null,
       difference,
+      noDeviceData: extra?.noDeviceData,
     });
 
     return {
@@ -183,6 +192,7 @@ export default async function CollectionsPage() {
       differenceLabel: difference == null ? "—" : money(difference),
       alert,
       openTicket: openTicketIds.has(item.id),
+      noDeviceData: Boolean(extra?.noDeviceData),
       search: `${machineName} ${technicianName} ${cashierName} ${item.id}`,
     };
   });

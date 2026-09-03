@@ -290,6 +290,8 @@ model collections {
   actualReceived  Decimal? @db.Decimal(10, 2)
   /// done | missing
   recountStatus   String?  @db.VarChar(16)
+  /// Касир додав пакет вручну: апарат не передав дані інкасації
+  noDeviceData    Boolean  @default(false) @map("no_device_data")
   created_at      DateTime @db.Timestamptz(6)
   updated_at      DateTime @db.Timestamptz(6)
 

@@ -9,10 +9,11 @@ import {
   taskTypeLabel,
 } from "@/lib/task-fields";
 import { parsePhotoUrls } from "@/lib/photo-urls";
-import { listOpenMissingEvents } from "@/lib/collection-recount";
+import { listOpenMissingEvents, listOpenNoDeviceDataPackages } from "@/lib/collection-recount";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 import { listTickets } from "@/lib/tickets";
 import type { TicketThread } from "@/lib/ticket-types";
+import { NO_DEVICE_DATA_WARN } from "@/lib/collection-alert";
 
 export type ManagerPublicTask = {
   id: number;
@@ -48,6 +49,17 @@ export type ManagerPublicMissing = {
   timeLabel: string;
 };
 
+export type ManagerPublicNoDeviceData = {
+  id: number;
+  handoverId: number;
+  technicianName: string;
+  machine: string;
+  amount: number;
+  warn: string;
+  dateLabel: string;
+  timeLabel: string;
+};
+
 export type ManagerPublicPage = {
   manager: {
     id: number;
@@ -56,6 +68,7 @@ export type ManagerPublicPage = {
   };
   tasks: ManagerPublicTask[];
   missingEvents: ManagerPublicMissing[];
+  noDeviceDataEvents: ManagerPublicNoDeviceData[];
   tickets: TicketThread[];
 };
 
@@ -142,7 +155,7 @@ export async function getManagerPublicPage(
   const manager = await findManagerByPhoneDigits(phoneDigits);
   if (!manager) return null;
 
-  const [taskRows, missingRows, tickets] = await Promise.all([
+  const [taskRows, missingRows, noDeviceRows, tickets] = await Promise.all([
     prismadb.tasks.findMany({
     where: {
       OR: [
@@ -182,6 +195,7 @@ export async function getManagerPublicPage(
     },
     }),
     listOpenMissingEvents(),
+    listOpenNoDeviceDataPackages(),
     listTickets({ status: "open" }).catch((error) => {
       console.error("[MANAGER_TICKETS]", error);
       return [] as TicketThread[];
@@ -203,6 +217,16 @@ export async function getManagerPublicPage(
       expectedSum: e.expectedSum,
       dateLabel: kyivDateLabel(e.createdAt),
       timeLabel: kyivTimeLabel(e.createdAt),
+    })),
+    noDeviceDataEvents: noDeviceRows.map((e) => ({
+      id: e.id,
+      handoverId: e.handoverId,
+      technicianName: e.technicianName,
+      machine: e.machine,
+      amount: e.amount,
+      warn: NO_DEVICE_DATA_WARN,
+      dateLabel: kyivDateLabel(e.date),
+      timeLabel: kyivTimeLabel(e.date),
     })),
     tickets,
   };

@@ -75,19 +75,42 @@ export async function applyCollectionRecount(input: {
   };
 }
 
-async function closeHandoverRecountIfDone(handoverId: number): Promise<{
+export async function closeHandoverRecountIfDone(handoverId: number): Promise<{
   closed: boolean;
   missingNotified: number;
 }> {
   const hid = asInt(handoverId);
-  const pending = await prismadb.$queryRawUnsafe<Array<{ n: bigint | number }>>(
-    `SELECT COUNT(*)::int AS n
-     FROM collections
-     WHERE "handoverId" = ${hid}
-       AND ("recountStatus" IS NULL OR "recountStatus" = '')`
+
+  const meta = await prismadb.$queryRawUnsafe<
+    Array<{ received_packages: number; recount_closed_at: Date | null }>
+  >(
+    `SELECT received_packages, recount_closed_at
+     FROM collection_handovers WHERE id = ${hid} LIMIT 1`
   );
-  const left = Number(pending[0]?.n ?? 1);
-  if (left > 0) return { closed: false, missingNotified: 0 };
+  if (!meta[0]) return { closed: false, missingNotified: 0 };
+  if (meta[0].recount_closed_at) return { closed: true, missingNotified: 0 };
+
+  const counts = await prismadb.$queryRawUnsafe<
+    Array<{ total: number; pending: number }>
+  >(
+    `SELECT
+       COUNT(*)::int AS total,
+       COUNT(*) FILTER (
+         WHERE "recountStatus" IS NULL OR "recountStatus" = ''
+       )::int AS pending
+     FROM collections
+     WHERE "handoverId" = ${hid}`
+  );
+  const total = Number(counts[0]?.total ?? 0);
+  const pending = Number(counts[0]?.pending ?? 0);
+  const received = Number(meta[0].received_packages ?? 0);
+
+  // Не закриваємо, поки всі привʼязані пакети не перераховані
+  // і їх кількість не покриває отримані касиром пакети.
+  if (pending > 0) return { closed: false, missingNotified: 0 };
+  if (total < received) return { closed: false, missingNotified: 0 };
+  // Порожня здача без пакетів — не чіпаємо тут (закривається окремо як orphan)
+  if (total === 0) return { closed: false, missingNotified: 0 };
 
   await prismadb.$executeRawUnsafe(
     `UPDATE collection_handovers
@@ -184,6 +207,63 @@ export type ManagerMissingEvent = {
   expectedSum: number;
   createdAt: Date;
 };
+
+export type NoDeviceDataEvent = {
+  id: number;
+  handoverId: number;
+  technicianId: number | null;
+  technicianName: string;
+  machine: string;
+  amount: number;
+  date: Date;
+};
+
+export async function listOpenNoDeviceDataPackages(): Promise<
+  NoDeviceDataEvent[]
+> {
+  try {
+    const { ensureCollectionsNoDeviceDataColumn } = await import(
+      "@/lib/collection-handovers"
+    );
+    await ensureCollectionsNoDeviceDataColumn();
+    const rows = await prismadb.$queryRawUnsafe<
+      Array<{
+        id: number;
+        handoverId: number;
+        technicianId: number | null;
+        technician_name: string | null;
+        machine: string;
+        total_sum: unknown;
+        actualReceived: unknown;
+        date: Date;
+      }>
+    >(`
+      SELECT c.id, c."handoverId", c."technicianId", w.name AS technician_name,
+             c.machine, c.total_sum, c."actualReceived", c.date
+      FROM collections c
+      LEFT JOIN workers w ON w.id = c."technicianId"
+      JOIN collection_handovers h ON h.id = c."handoverId"
+      WHERE c.no_device_data = TRUE
+        AND h.recount_closed_at IS NULL
+      ORDER BY c.date DESC
+      LIMIT 100
+    `);
+    return rows.map((r) => ({
+      id: r.id,
+      handoverId: r.handoverId,
+      technicianId: r.technicianId,
+      technicianName:
+        r.technician_name ||
+        (r.technicianId != null ? `Технік #${r.technicianId}` : "—"),
+      machine: r.machine || "—",
+      amount: decimalToNumber(r.actualReceived ?? r.total_sum),
+      date: r.date,
+    }));
+  } catch (error) {
+    console.error("[NO_DEVICE_DATA_LIST]", error);
+    return [];
+  }
+}
 
 export async function listOpenMissingEvents(): Promise<ManagerMissingEvent[]> {
   try {

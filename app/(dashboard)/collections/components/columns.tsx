@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/table-core";
 import { MessageCircle } from "lucide-react";
 
 import type { RecountAlert } from "@/lib/collection-alert";
+import { NO_DEVICE_DATA_WARN } from "@/lib/collection-alert";
 
 import { CellAction } from "./cell-action";
 import { CollectionStatusBadge } from "./status-badge";
@@ -41,6 +42,7 @@ export type CollectionColumn = {
   differenceLabel: string;
   alert: RecountAlert | null;
   openTicket: boolean;
+  noDeviceData: boolean;
   search: string;
 };
 
@@ -49,14 +51,21 @@ export const columns: ColumnDef<CollectionColumn>[] = [
     accessorKey: "machine",
     header: "Автомат",
     cell: ({ row }) => (
-      <span className="inline-flex items-center gap-1.5">
-        {row.original.openTicket ? (
-          <MessageCircle
-            className="h-4 w-4 shrink-0 text-sky-600"
-            aria-label="Відкрите звернення"
-          />
+      <span className="inline-flex flex-col gap-0.5">
+        <span className="inline-flex items-center gap-1.5">
+          {row.original.openTicket ? (
+            <MessageCircle
+              className="h-4 w-4 shrink-0 text-sky-600"
+              aria-label="Відкрите звернення"
+            />
+          ) : null}
+          {row.original.machine}
+        </span>
+        {row.original.noDeviceData ? (
+          <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+            Warn: {NO_DEVICE_DATA_WARN}
+          </span>
         ) : null}
-        {row.original.machine}
       </span>
     ),
   },

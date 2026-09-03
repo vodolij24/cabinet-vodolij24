@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, MessageCircle } from "lucide-react";
 
-import { handoverAlert } from "@/lib/collection-alert";
+import { handoverAlert, NO_DEVICE_DATA_WARN } from "@/lib/collection-alert";
 
 import type { CollectionColumn } from "./columns";
 import { RecountCell } from "./recount-cell";
@@ -96,6 +96,7 @@ export function HandoversList({ data }: { data: CollectionColumn[] }) {
         const alert = handoverAlert(group.packages);
         const mismatch = group.claimedPackages !== group.receivedPackages;
         const hasOpenTicket = group.packages.some((p) => p.openTicket);
+        const hasNoDeviceData = group.packages.some((p) => p.noDeviceData);
         return (
           <div
             key={group.id}
@@ -125,6 +126,11 @@ export function HandoversList({ data }: { data: CollectionColumn[] }) {
                   {group.date} {group.time}
                   {group.cashierName ? ` · ${group.cashierName}` : ""}
                 </p>
+                {hasNoDeviceData ? (
+                  <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                    Warn: {NO_DEVICE_DATA_WARN}
+                  </p>
+                ) : null}
               </div>
               <p className="text-sm tabular-nums text-muted-foreground">
                 {group.packages.length} пакет.
@@ -158,14 +164,21 @@ export function HandoversList({ data }: { data: CollectionColumn[] }) {
                     {group.packages.map((pkg) => (
                       <tr key={pkg.id} className="border-t">
                         <td className="px-4 py-2">
-                          <span className="inline-flex items-center gap-1.5">
-                            {pkg.openTicket ? (
-                              <MessageCircle
-                                className="h-4 w-4 shrink-0 text-sky-600"
-                                aria-label="Відкрите звернення"
-                              />
+                          <span className="inline-flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1.5">
+                              {pkg.openTicket ? (
+                                <MessageCircle
+                                  className="h-4 w-4 shrink-0 text-sky-600"
+                                  aria-label="Відкрите звернення"
+                                />
+                              ) : null}
+                              {pkg.machine}
+                            </span>
+                            {pkg.noDeviceData ? (
+                              <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                                Warn: {NO_DEVICE_DATA_WARN}
+                              </span>
                             ) : null}
-                            {pkg.machine}
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">

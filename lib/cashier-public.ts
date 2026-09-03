@@ -1,7 +1,11 @@
 import prismadb from "@/lib/prismadb";
 import { digitsOnlyPhone } from "@/lib/phone";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
-import { listHandovers } from "@/lib/collection-handovers";
+import {
+  closeOrphanOpenHandovers,
+  ensureCollectionsNoDeviceDataColumn,
+  listHandovers,
+} from "@/lib/collection-handovers";
 import {
   cashierMachineLabel,
   decimalToNumber,
@@ -42,6 +46,7 @@ export type CashierPublicPackage = {
   actualReceived: number | null;
   recountStatus: string | null;
   handoverId: number;
+  noDeviceData: boolean;
 };
 
 export type CashierPublicPage = {
@@ -87,10 +92,14 @@ export async function getCashierPublicPage(
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    listHandovers(cashier.id).catch((error) => {
-      console.error("[CASHIER_HANDOVERS_LIST]", error);
-      return [] as Awaited<ReturnType<typeof listHandovers>>;
-    }),
+    (async () => {
+      await ensureCollectionsNoDeviceDataColumn();
+      await closeOrphanOpenHandovers();
+      return listHandovers(cashier.id).catch((error) => {
+        console.error("[CASHIER_HANDOVERS_LIST]", error);
+        return [] as Awaited<ReturnType<typeof listHandovers>>;
+      });
+    })(),
     listTickets({
       status: "open",
       cashierId: cashier.id,
@@ -152,6 +161,7 @@ type PackageRow = {
   machine: string;
   device_id: number | null;
   location: string | null;
+  no_device_data: boolean | null;
   date: Date;
   total_sum: unknown;
   sum_coins: unknown;
@@ -182,11 +192,13 @@ function mapPackageRows(
       r.actualReceived == null ? null : decimalToNumber(r.actualReceived),
     recountStatus: r.recountStatus,
     handoverId: r.handoverId,
+    noDeviceData: Boolean(r.no_device_data),
   }));
 }
 
 const PACKAGE_SELECT = `SELECT c.id, c.machine, c.device_id, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
               c."actualReceived", c."recountStatus", c."handoverId", c."technicianId",
+              COALESCE(c.no_device_data, FALSE) AS no_device_data,
               COALESCE(NULLIF(TRIM(vm.location), ''), NULLIF(TRIM(vm.address), '')) AS location
        FROM collections c
        LEFT JOIN vending_machines vm ON vm.id = c.device_id`;
@@ -222,6 +234,8 @@ export async function loadHandoverPackagesForCashier(
   ) {
     return null;
   }
+
+  await ensureCollectionsNoDeviceDataColumn();
 
   const owned = await prismadb.$queryRawUnsafe<Array<{ id: number }>>(
     `SELECT id FROM collection_handovers
