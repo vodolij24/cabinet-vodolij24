@@ -22,12 +22,14 @@ export function TicketsBlock({
   canClose = false,
   emptyText = "Немає відкритих звернень",
   title = "Звернення",
+  hideAmounts = false,
 }: {
   tickets: TicketThread[];
   basePath: string;
   canClose?: boolean;
   emptyText?: string;
   title?: string;
+  hideAmounts?: boolean;
 }) {
   if (tickets.length === 0) {
     return (
@@ -51,6 +53,7 @@ export function TicketsBlock({
           ticket={ticket}
           basePath={basePath}
           canClose={canClose}
+          hideAmounts={hideAmounts}
         />
       ))}
     </section>
@@ -61,10 +64,12 @@ export function TicketCard({
   ticket,
   basePath,
   canClose,
+  hideAmounts = false,
 }: {
   ticket: TicketThread;
   basePath: string;
   canClose: boolean;
+  hideAmounts?: boolean;
 }) {
   const router = useRouter();
   const [text, setText] = useState("");
@@ -124,12 +129,14 @@ export function TicketCard({
           {" · "}
           {ticket.dateLabel} {ticket.timeLabel}
         </p>
-        <p className="mt-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">
-          Очікувано {money(ticket.expectedSum)}
-          {ticket.actualReceived != null
-            ? ` · факт ${money(ticket.actualReceived)}`
-            : ""}
-        </p>
+        {!hideAmounts ? (
+          <p className="mt-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">
+            Очікувано {money(ticket.expectedSum)}
+            {ticket.actualReceived != null
+              ? ` · факт ${money(ticket.actualReceived)}`
+              : ""}
+          </p>
+        ) : null}
         {closed ? (
           <p className="mt-1 text-xs text-slate-400">
             Закрито

@@ -126,6 +126,7 @@ export function CashierHandoversClient({
           title="Звернення по інкасаціях"
           tickets={tickets}
           basePath={`/api/public/cashier/${phone}/tickets`}
+          hideAmounts
         />
       ) : null}
 
@@ -280,8 +281,6 @@ function groupPackagesByMachine(packages: CashierPublicPackage[]) {
   return [...map.entries()].map(([machine, pkgs]) => ({
     machine,
     packages: pkgs,
-    expected: pkgs.reduce((sum, p) => sum + p.total, 0),
-    actual: pkgs.reduce((sum, p) => sum + (p.actualReceived ?? 0), 0),
     missingCount: pkgs.filter((p) => p.recountStatus === "missing").length,
   }));
 }
@@ -388,10 +387,7 @@ function HandoverCard({
                       {m.machine}
                     </p>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                      Очікувалось {money(m.expected)}
-                      {m.packages.some((p) => p.actualReceived != null) ? (
-                        <> · фактично {money(m.actual)}</>
-                      ) : null}
+                      Пакетів: {m.packages.length}
                     </p>
                     {m.missingCount > 0 ? (
                       <p className="mt-1 text-sm font-medium text-rose-700">
@@ -401,11 +397,11 @@ function HandoverCard({
                     <ul className="mt-2 space-y-1 text-xs text-slate-500">
                       {m.packages.map((pkg) => (
                         <li key={pkg.id}>
-                          {pkg.dateLabel} {pkg.timeLabel} · {money(pkg.total)}
+                          {pkg.dateLabel} {pkg.timeLabel}
                           {pkg.recountStatus === "missing"
                             ? " · відсутній"
-                            : pkg.actualReceived != null
-                              ? ` · факт ${money(pkg.actualReceived)}`
+                            : pkg.recountStatus === "done"
+                              ? " · перераховано"
                               : ""}
                         </li>
                       ))}
@@ -419,13 +415,6 @@ function HandoverCard({
       ) : null}
     </div>
   );
-}
-
-function money(n: number) {
-  return `${n.toLocaleString("uk-UA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} грн`;
 }
 
 function CashierPackages({
@@ -563,13 +552,6 @@ function CashierPackages({
             const busy = busyId === pkg.id;
             const done = pkg.recountStatus === "done";
             const missing = pkg.recountStatus === "missing";
-            const expectedDiff =
-              Number.isFinite(
-                parseFloat(String(actual[pkg.id] ?? "").replace(",", "."))
-              )
-                ? pkg.total -
-                  parseFloat(String(actual[pkg.id] ?? "").replace(",", "."))
-                : null;
             return (
               <li key={pkg.id} className="space-y-3 px-4 py-4">
                 <div>
@@ -579,20 +561,11 @@ function CashierPackages({
                   <p className="text-xs text-slate-400">
                     {pkg.technicianName} · {pkg.dateLabel} {pkg.timeLabel}
                   </p>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                    Метал {money(pkg.sumCoins)} · папір {money(pkg.sumBanknotes)} · разом{" "}
-                    {money(pkg.total)}
-                  </p>
                 </div>
                 {missing ? (
                   <p className="text-sm font-medium text-rose-700">Відсутній</p>
                 ) : done ? (
-                  <p className="text-sm text-slate-500">
-                    Перераховано
-                    {pkg.actualReceived != null
-                      ? ` · ${money(pkg.actualReceived)}`
-                      : ""}
-                  </p>
+                  <p className="text-sm text-slate-500">Перераховано</p>
                 ) : (
                   <>
                     <Input
@@ -606,11 +579,6 @@ function CashierPackages({
                         setActual((m) => ({ ...m, [pkg.id]: e.target.value }))
                       }
                     />
-                    {expectedDiff != null ? (
-                      <p className="text-xs text-slate-500">
-                        Різниця {money(Math.round(expectedDiff * 100) / 100)}
-                      </p>
-                    ) : null}
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
