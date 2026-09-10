@@ -11,9 +11,18 @@ import {
 import { parsePhotoUrls } from "@/lib/photo-urls";
 import { listTickets } from "@/lib/tickets";
 import type { TicketThread } from "@/lib/ticket-types";
+import { cashierMachineLabel, machineLabel } from "@/lib/collection-fields";
+import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 import { getMachineCashboxMap } from "@/lib/machine-cashbox";
 import { getMachineWaterMetricsMap } from "@/lib/soliton-water-metrics";
 import { getCachedSensorsMap, type SolitonSensor } from "@/lib/soliton-sensors";
+import { ensureCollectionMvpSchema } from "@/lib/collection-schema";
+import {
+  ANTIFRAUD_DAYS,
+  collectionAgingDays,
+  collectionStatusLabel,
+  collectionStatusOrDefault,
+} from "@/lib/collection-status";
 
 export type TechnicianPublicSensor = SolitonSensor;
 
@@ -51,6 +60,40 @@ export type TechnicianPublicTask = {
   managerDecisionLabel: string | null;
 };
 
+export type TechnicianPublicCollection = {
+  id: number;
+  machine: string;
+  deviceId: number | null;
+  dateLabel: string;
+  timeLabel: string;
+  dateMs: number;
+  status: string;
+  statusLabel: string;
+  isPhantom: boolean;
+  isManual: boolean;
+  agingDays: number;
+  overdue: boolean;
+};
+
+export type TechnicianPublicCashier = {
+  id: number;
+  name: string;
+};
+
+export type TechnicianPublicMachineOption = {
+  id: number;
+  label: string;
+};
+
+export type TechnicianPublicCollections = {
+  packages: TechnicianPublicCollection[];
+  packageCount: number;
+  machineCount: number;
+  history: TechnicianPublicCollection[];
+  cashiers: TechnicianPublicCashier[];
+  machines: TechnicianPublicMachineOption[];
+};
+
 export type TechnicianPublicPage = {
   technician: {
     id: number;
@@ -59,10 +102,161 @@ export type TechnicianPublicPage = {
   };
   machines: TechnicianPublicMachine[];
   tasks: TechnicianPublicTask[];
+  collections: TechnicianPublicCollections;
   totalWaterLitersMonth: number;
   monthLabel: string;
   tickets: TicketThread[];
 };
+
+function asPositiveInt(n: number) {
+  const v = Number(n);
+  if (!Number.isInteger(v) || v <= 0) throw new Error("Invalid id");
+  return v;
+}
+
+const emptyCollections = (): TechnicianPublicCollections => ({
+  packages: [],
+  packageCount: 0,
+  machineCount: 0,
+  history: [],
+  cashiers: [],
+  machines: [],
+});
+
+/** Technician list: only unhanded collections from this date (Kyiv). */
+const UNHANDED_FROM_SQL = "TIMESTAMPTZ '2026-09-01 00:00:00+03'";
+
+type CollectionListRow = {
+  id: number;
+  machine: string;
+  device_id: number | null;
+  date: Date;
+  location: string | null;
+  status: string | null;
+  handoverId: number | null;
+  is_phantom: boolean | null;
+  is_manual: boolean | null;
+};
+
+function mapTechPackage(r: CollectionListRow): TechnicianPublicCollection {
+  const status = collectionStatusOrDefault(r.status, r.handoverId);
+  const agingDays = collectionAgingDays(r.date);
+  return {
+    id: r.id,
+    machine: cashierMachineLabel(r.device_id, r.location, r.machine),
+    deviceId: r.device_id,
+    dateLabel: kyivDateLabel(r.date),
+    timeLabel: kyivTimeLabel(r.date),
+    dateMs: r.date.getTime(),
+    status,
+    statusLabel: collectionStatusLabel(status),
+    isPhantom: Boolean(r.is_phantom),
+    isManual: Boolean(r.is_manual),
+    agingDays,
+    overdue: status === "on_hand" && agingDays >= ANTIFRAUD_DAYS,
+  };
+}
+
+function uniqueMachineCount(packages: TechnicianPublicCollection[]) {
+  const machines = new Set<string>();
+  for (const pkg of packages) {
+    machines.add(
+      pkg.deviceId != null ? `id:${pkg.deviceId}` : `name:${pkg.machine}`
+    );
+  }
+  return machines.size;
+}
+
+async function listActiveCashiers(): Promise<TechnicianPublicCashier[]> {
+  const cashiers = await prismadb.workers.findMany({
+    where: {
+      role: "cashier",
+      OR: [{ active: true }, { active: null }],
+    },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  return cashiers.map((c) => ({
+    id: c.id,
+    name: c.name || `Касир #${c.id}`,
+  }));
+}
+
+/** Нездані інкасації техніка (ще не в здачі касиру) + історія. */
+export async function getTechnicianUnhandedCollections(
+  technicianId: number,
+  machineIds: number[]
+): Promise<TechnicianPublicCollections> {
+  try {
+    await ensureCollectionMvpSchema();
+    const techId = asPositiveInt(technicianId);
+    const ids = machineIds
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0);
+    const machineFilter = ids.length > 0 ? ` OR c.device_id IN (${ids.join(",")})` : "";
+    const ownFilter = `(c."technicianId" = ${techId}${machineFilter})`;
+
+    const [onHand, history, cashiers, machineRows] = await Promise.all([
+      prismadb.$queryRawUnsafe<CollectionListRow[]>(
+        `SELECT c.id, c.machine, c.device_id, c.date, c.status, c."handoverId",
+                COALESCE(c.is_phantom, FALSE) AS is_phantom,
+                COALESCE(c.is_manual, FALSE) AS is_manual,
+                COALESCE(NULLIF(TRIM(vm.location), ''), NULLIF(TRIM(vm.address), '')) AS location
+         FROM collections c
+         LEFT JOIN vending_machines vm ON vm.id = c.device_id
+         WHERE c."handoverId" IS NULL
+           AND COALESCE(c.status, 'on_hand') = 'on_hand'
+           AND c.date >= ${UNHANDED_FROM_SQL}
+           AND ${ownFilter}
+         ORDER BY c.date DESC`
+      ),
+      prismadb.$queryRawUnsafe<CollectionListRow[]>(
+        `SELECT c.id, c.machine, c.device_id, c.date, c.status, c."handoverId",
+                COALESCE(c.is_phantom, FALSE) AS is_phantom,
+                COALESCE(c.is_manual, FALSE) AS is_manual,
+                COALESCE(NULLIF(TRIM(vm.location), ''), NULLIF(TRIM(vm.address), '')) AS location
+         FROM collections c
+         LEFT JOIN vending_machines vm ON vm.id = c.device_id
+         WHERE c.date >= ${UNHANDED_FROM_SQL}
+           AND ${ownFilter}
+           AND NOT (
+             c."handoverId" IS NULL
+             AND COALESCE(c.status, 'on_hand') = 'on_hand'
+           )
+         ORDER BY c.date DESC
+         LIMIT 200`
+      ),
+      listActiveCashiers(),
+      ids.length > 0
+        ? prismadb.vending_machines.findMany({
+            where: { id: { in: ids } },
+            orderBy: { id: "asc" },
+            select: { id: true, name: true, location: true, address: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const packages = onHand.map(mapTechPackage);
+    return {
+      packages,
+      packageCount: packages.length,
+      machineCount: uniqueMachineCount(packages),
+      history: history.map(mapTechPackage),
+      cashiers,
+      machines: machineRows.map((m) => ({
+        id: m.id,
+        label: machineLabel({
+          id: m.id,
+          name: m.name,
+          location: m.location || m.address,
+        }),
+      })),
+    };
+  } catch (error) {
+    console.error("[TECH_UNHANDED_COLLECTIONS]", error);
+    return emptyCollections();
+  }
+}
 
 export async function findTechnicianByPhoneDigits(phoneDigits: string) {
   const workers = await prismadb.workers.findMany({
@@ -120,10 +314,11 @@ export async function getTechnicianPublicPage(
     }
   }
 
-  const [cashboxMap, waterMetrics, sensorsMap] = await Promise.all([
+  const [cashboxMap, waterMetrics, sensorsMap, collections] = await Promise.all([
     getMachineCashboxMap(deviceIds),
     getMachineWaterMetricsMap(deviceIds),
     getCachedSensorsMap(deviceIds),
+    getTechnicianUnhandedCollections(technician.id, deviceIds),
   ]);
 
   const rows: TechnicianPublicMachine[] = machines.map((m) => {
@@ -204,6 +399,7 @@ export async function getTechnicianPublicPage(
     },
     machines: rows,
     tasks,
+    collections,
     tickets: await listTickets({
       status: "open",
       technicianId: technician.id,

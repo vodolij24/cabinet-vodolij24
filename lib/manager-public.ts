@@ -10,6 +10,7 @@ import {
 } from "@/lib/task-fields";
 import { parsePhotoUrls } from "@/lib/photo-urls";
 import { listOpenMissingEvents, listOpenNoDeviceDataPackages } from "@/lib/collection-recount";
+import { listOnHandOverdue } from "@/lib/collection-lifecycle";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 import { listTickets } from "@/lib/tickets";
 import type { TicketThread } from "@/lib/ticket-types";
@@ -60,6 +61,14 @@ export type ManagerPublicNoDeviceData = {
   timeLabel: string;
 };
 
+export type ManagerPublicOverdue = {
+  id: number;
+  technicianName: string;
+  machine: string;
+  dateLabel: string;
+  agingDays: number;
+};
+
 export type ManagerPublicPage = {
   manager: {
     id: number;
@@ -69,6 +78,7 @@ export type ManagerPublicPage = {
   tasks: ManagerPublicTask[];
   missingEvents: ManagerPublicMissing[];
   noDeviceDataEvents: ManagerPublicNoDeviceData[];
+  overdueOnHand: ManagerPublicOverdue[];
   tickets: TicketThread[];
 };
 
@@ -155,7 +165,7 @@ export async function getManagerPublicPage(
   const manager = await findManagerByPhoneDigits(phoneDigits);
   if (!manager) return null;
 
-  const [taskRows, missingRows, noDeviceRows, tickets] = await Promise.all([
+  const [taskRows, missingRows, noDeviceRows, tickets, overdue] = await Promise.all([
     prismadb.tasks.findMany({
     where: {
       OR: [
@@ -200,6 +210,10 @@ export async function getManagerPublicPage(
       console.error("[MANAGER_TICKETS]", error);
       return [] as TicketThread[];
     }),
+    listOnHandOverdue(7).catch((error) => {
+      console.error("[MANAGER_OVERDUE]", error);
+      return [];
+    }),
   ]);
 
   return {
@@ -227,6 +241,13 @@ export async function getManagerPublicPage(
       warn: NO_DEVICE_DATA_WARN,
       dateLabel: kyivDateLabel(e.date),
       timeLabel: kyivTimeLabel(e.date),
+    })),
+    overdueOnHand: overdue.map((e) => ({
+      id: e.id,
+      technicianName: e.technicianName,
+      machine: e.machine,
+      dateLabel: e.dateLabel,
+      agingDays: e.agingDays,
     })),
     tickets,
   };

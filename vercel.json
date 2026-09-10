@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/soliton-sync",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/collection-antifraud",
+      "schedule": "0 5 * * *"
     }
   ]
 }

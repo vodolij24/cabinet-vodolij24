@@ -43,6 +43,11 @@ export type CollectionColumn = {
   alert: RecountAlert | null;
   openTicket: boolean;
   noDeviceData: boolean;
+  lifecycleStatus: string;
+  lifecycleStatusLabel: string;
+  isPhantom: boolean;
+  isManual: boolean;
+  deltaPct: number | null;
   search: string;
 };
 
@@ -129,7 +134,12 @@ export const columns: ColumnDef<CollectionColumn>[] = [
   {
     id: "status",
     header: "Статус",
-    cell: ({ row }) => <CollectionStatusBadge alert={row.original.alert} />,
+    cell: ({ row }) => (
+      <span className="inline-flex flex-col gap-1">
+        <span className="text-sm">{row.original.lifecycleStatusLabel}</span>
+        <CollectionStatusBadge alert={row.original.alert} />
+      </span>
+    ),
   },
   {
     id: "actions",

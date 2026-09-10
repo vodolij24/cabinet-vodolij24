@@ -6,11 +6,18 @@ export function recountAlert(input: {
   recountStatus: string | null;
   difference: number | null;
   noDeviceData?: boolean;
+  status?: string | null;
+  deltaPct?: number | null;
 }): RecountAlert | null {
+  if (input.status === "review" || input.recountStatus === "missing") {
+    return "alarm";
+  }
+  if (input.status === "closed_auto") return "success";
+  if (input.status === "closed_manual") return "success";
   if (!input.handedOver) return null;
   if (input.noDeviceData) return "warning";
-  if (input.recountStatus === "missing") return "alarm";
   if (input.difference == null) return "pending";
+  if (input.deltaPct != null && input.deltaPct > 2) return "warning";
   const abs = Math.abs(input.difference);
   if (abs > 1000) return "alarm";
   if (abs > 200) return "warning";

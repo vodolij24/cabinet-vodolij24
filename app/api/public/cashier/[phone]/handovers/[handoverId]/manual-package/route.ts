@@ -29,6 +29,8 @@ export async function POST(
     const body = await req.json();
     const deviceId = parseInt(String(body?.deviceId ?? ""), 10);
     const amount = parseMoney(body?.amount);
+    const comment =
+      typeof body?.comment === "string" ? body.comment : null;
 
     if (!Number.isFinite(deviceId) || deviceId <= 0) {
       return new NextResponse("Вкажіть номер апарата", { status: 400 });
@@ -39,9 +41,11 @@ export async function POST(
 
     const result = await addManualHandoverPackage({
       cashierId: cashier.id,
+      cashierName: cashier.name || `Касир #${cashier.id}`,
       handoverId: hid,
       deviceId,
       amount,
+      comment,
     });
 
     return NextResponse.json(result);

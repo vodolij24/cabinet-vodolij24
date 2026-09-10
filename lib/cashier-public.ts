@@ -3,15 +3,16 @@ import { digitsOnlyPhone } from "@/lib/phone";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 import {
   closeOrphanOpenHandovers,
-  ensureCollectionsNoDeviceDataColumn,
   listHandovers,
 } from "@/lib/collection-handovers";
-import {
-  cashierMachineLabel,
-  decimalToNumber,
-} from "@/lib/collection-fields";
+import { cashierMachineLabel, decimalToNumber } from "@/lib/collection-fields";
 import { listTickets } from "@/lib/tickets";
 import type { TicketThread } from "@/lib/ticket-types";
+import { ensureCollectionMvpSchema } from "@/lib/collection-schema";
+import {
+  collectionStatusLabel,
+  collectionStatusOrDefault,
+} from "@/lib/collection-status";
 
 export type CashierPublicHandover = {
   id: number;
@@ -40,13 +41,17 @@ export type CashierPublicPackage = {
   technicianName: string;
   dateLabel: string;
   timeLabel: string;
-  sumCoins: number;
-  sumBanknotes: number;
-  total: number;
   actualReceived: number | null;
+  actualCoins: number | null;
+  actualBanknotes: number | null;
   recountStatus: string | null;
+  status: string;
+  statusLabel: string;
   handoverId: number;
   noDeviceData: boolean;
+  isPhantom: boolean;
+  isManual: boolean;
+  canEdit: boolean;
 };
 
 export type CashierPublicPage = {
@@ -93,7 +98,7 @@ export async function getCashierPublicPage(
       select: { id: true, name: true },
     }),
     (async () => {
-      await ensureCollectionsNoDeviceDataColumn();
+      await ensureCollectionMvpSchema();
       await closeOrphanOpenHandovers();
       return listHandovers(cashier.id).catch((error) => {
         console.error("[CASHIER_HANDOVERS_LIST]", error);
@@ -162,43 +167,66 @@ type PackageRow = {
   device_id: number | null;
   location: string | null;
   no_device_data: boolean | null;
+  is_phantom: boolean | null;
+  is_manual: boolean | null;
   date: Date;
-  total_sum: unknown;
-  sum_coins: unknown;
-  sum_banknotes: unknown;
   actualReceived: unknown;
+  actual_received_coins: unknown;
+  actual_received_banknotes: unknown;
   recountStatus: string | null;
+  status: string | null;
   handoverId: number;
   technicianId: number | null;
+  review_claimed_at: Date | null;
 };
 
 function mapPackageRows(
   rows: PackageRow[],
   techById: Map<number, string | null>
 ): CashierPublicPackage[] {
-  return rows.map((r) => ({
-    id: r.id,
-    machine: cashierMachineLabel(r.device_id, r.location, r.machine),
-    deviceId: r.device_id,
-    technicianId: r.technicianId,
-    technicianName:
-      (r.technicianId != null ? techById.get(r.technicianId) : null) || "—",
-    dateLabel: kyivDateLabel(r.date),
-    timeLabel: kyivTimeLabel(r.date),
-    sumCoins: decimalToNumber(r.sum_coins),
-    sumBanknotes: decimalToNumber(r.sum_banknotes),
-    total: decimalToNumber(r.total_sum),
-    actualReceived:
-      r.actualReceived == null ? null : decimalToNumber(r.actualReceived),
-    recountStatus: r.recountStatus,
-    handoverId: r.handoverId,
-    noDeviceData: Boolean(r.no_device_data),
-  }));
+  return rows.map((r) => {
+    const status = collectionStatusOrDefault(r.status, r.handoverId);
+    const claimed = r.review_claimed_at != null;
+    const canEdit =
+      status !== "closed_manual" && !claimed;
+    return {
+      id: r.id,
+      machine: cashierMachineLabel(r.device_id, r.location, r.machine),
+      deviceId: r.device_id,
+      technicianId: r.technicianId,
+      technicianName:
+        (r.technicianId != null ? techById.get(r.technicianId) : null) || "—",
+      dateLabel: kyivDateLabel(r.date),
+      timeLabel: kyivTimeLabel(r.date),
+      actualReceived:
+        r.actualReceived == null ? null : decimalToNumber(r.actualReceived),
+      actualCoins:
+        r.actual_received_coins == null
+          ? null
+          : decimalToNumber(r.actual_received_coins),
+      actualBanknotes:
+        r.actual_received_banknotes == null
+          ? null
+          : decimalToNumber(r.actual_received_banknotes),
+      recountStatus: r.recountStatus,
+      status,
+      statusLabel: collectionStatusLabel(status),
+      handoverId: r.handoverId,
+      noDeviceData: Boolean(r.no_device_data),
+      isPhantom: Boolean(r.is_phantom),
+      isManual: Boolean(r.is_manual),
+      canEdit,
+    };
+  });
 }
 
-const PACKAGE_SELECT = `SELECT c.id, c.machine, c.device_id, c.date, c.total_sum, c.sum_coins, c.sum_banknotes,
-              c."actualReceived", c."recountStatus", c."handoverId", c."technicianId",
+const PACKAGE_SELECT = `SELECT c.id, c.machine, c.device_id, c.date,
+              c."actualReceived", c.actual_received_coins, c.actual_received_banknotes,
+              c."recountStatus", c.status, c."handoverId", c."technicianId",
               COALESCE(c.no_device_data, FALSE) AS no_device_data,
+              COALESCE(c.is_phantom, FALSE) AS is_phantom,
+              COALESCE(c.is_manual, FALSE) AS is_manual,
+              c.review_claimed_at,
               COALESCE(NULLIF(TRIM(vm.location), ''), NULLIF(TRIM(vm.address), '')) AS location
        FROM collections c
        LEFT JOIN vending_machines vm ON vm.id = c.device_id`;
@@ -212,7 +240,15 @@ async function loadCashierPackages(
       `${PACKAGE_SELECT}
        JOIN collection_handovers h ON h.id = c."handoverId"
        WHERE h.cashier_id = ${cashierId}
-         AND h.recount_closed_at IS NULL
+         AND c.review_claimed_at IS NULL
+         AND (
+           COALESCE(c.status, 'handed') IN ('handed', 'accepted', 'review')
+           OR (
+             c.status = 'closed_auto'
+             AND c.closed_at IS NOT NULL
+             AND c.closed_at > NOW() - INTERVAL '2 days'
+           )
+         )
        ORDER BY c.device_id NULLS LAST, c.date DESC`
     );
     return mapPackageRows(rows, techById);
@@ -235,7 +271,7 @@ export async function loadHandoverPackagesForCashier(
     return null;
   }
 
-  await ensureCollectionsNoDeviceDataColumn();
+  await ensureCollectionMvpSchema();
 
   const owned = await prismadb.$queryRawUnsafe<Array<{ id: number }>>(
     `SELECT id FROM collection_handovers

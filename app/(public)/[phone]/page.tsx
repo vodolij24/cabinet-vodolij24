@@ -16,6 +16,7 @@ import { ManagerTasksClient } from "./components/manager-tasks-client";
 import { TechnicianTasksClient } from "./components/technician-tasks-client";
 import { TechnicianFinanceClient } from "./components/technician-finance-client";
 import { TechnicianMachinesClient } from "./components/technician-machines-client";
+import { TechnicianPublicShell } from "./components/technician-public-shell";
 import { getCashierPublicPage } from "@/lib/cashier-public";
 import { CashierHandoversClient } from "./components/cashier-handovers-client";
 import { TicketsBlock } from "@/components/tickets-block";
@@ -92,6 +93,25 @@ async function ManagerPage({ phone }: { phone: string }) {
 
       <ManagerMissingClient phone={phone} events={data.missingEvents} />
       <ManagerNoDeviceDataClient events={data.noDeviceDataEvents} />
+      {data.overdueOnHand.length > 0 ? (
+        <section className="mb-6 overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm dark:border-amber-900/40 dark:bg-slate-900">
+          <div className="border-b border-amber-100 bg-amber-50/80 px-4 py-3 text-sm font-medium text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+            На руках понад 7 днів ({data.overdueOnHand.length})
+          </div>
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {data.overdueOnHand.map((item) => (
+              <li key={item.id} className="px-4 py-3">
+                <p className="font-medium text-slate-900 dark:text-slate-100">
+                  {item.machine}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {item.technicianName} · {item.dateLabel} · {item.agingDays} дн.
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mb-6">
         <TicketsBlock
@@ -112,12 +132,25 @@ async function ManagerPage({ phone }: { phone: string }) {
   );
 }
 
-async function TechnicianPage({ phone }: { phone: string }) {
+async function TechnicianPage({
+  phone,
+  tab,
+}: {
+  phone: string;
+  tab?: string;
+}) {
   const data = await getTechnicianPublicPage(phone);
   if (!data) notFound();
 
-  const { technician, machines, tasks, tickets, totalWaterLitersMonth, monthLabel } =
-    data;
+  const {
+    technician,
+    machines,
+    tasks,
+    tickets,
+    collections,
+    totalWaterLitersMonth,
+    monthLabel,
+  } = data;
 
   const periodKey = currentPeriodKey();
   const finance = await getTechnicianFinanceSnapshot(
@@ -129,20 +162,13 @@ async function TechnicianPage({ phone }: { phone: string }) {
   const archiveTasks = tasks.filter((t) => !t.actionable);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-8 pt-2 sm:px-6">
-      <header className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PublicLogo />
-        <div className="text-left sm:text-right">
-          <p className="text-sm text-sky-700/70 dark:text-sky-300/70">Технік</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            {technician.name || "Без імені"}
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {technician.phoneDigits}
-          </p>
-        </div>
-      </header>
-
+    <TechnicianPublicShell
+      phone={phone}
+      technicianName={technician.name || "Без імені"}
+      phoneDigits={technician.phoneDigits}
+      initialCollections={collections}
+      initialTab={tab}
+    >
       <section className="mb-6 rounded-2xl border border-sky-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Реалізовано води · {monthLabel}
@@ -195,16 +221,19 @@ async function TechnicianPage({ phone }: { phone: string }) {
           section="archive"
         />
       ) : null}
-    </main>
+    </TechnicianPublicShell>
   );
 }
 
 export default async function PublicWorkerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ phone: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { phone } = await params;
+  const query = await searchParams;
   if (!isPhoneRouteParam(phone)) {
     notFound();
   }
@@ -219,7 +248,7 @@ export default async function PublicWorkerPage({
   }
 
   if (worker.role === "technician") {
-    return <TechnicianPage phone={phone} />;
+    return <TechnicianPage phone={phone} tab={query.tab} />;
   }
 
   if (worker.role === "cashier") {

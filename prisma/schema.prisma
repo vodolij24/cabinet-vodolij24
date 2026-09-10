@@ -292,6 +292,19 @@ model collections {
   recountStatus   String?  @db.VarChar(16)
   /// Касир додав пакет вручну: апарат не передав дані інкасації
   noDeviceData    Boolean  @default(false) @map("no_device_data")
+  /// on_hand | handed | accepted | closed_auto | review | closed_manual
+  status          String?  @default("on_hand") @db.VarChar(32)
+  /// auto | manual
+  closeMode       String?  @map("close_mode") @db.VarChar(16)
+  closedAt        DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedByName    String?  @map("closed_by_name") @db.VarChar(255)
+  closeReason     String?  @map("close_reason")
+  isPhantom       Boolean  @default(false) @map("is_phantom")
+  isManual        Boolean  @default(false) @map("is_manual")
+  actualReceivedCoins      Decimal? @map("actual_received_coins") @db.Decimal(10, 2)
+  actualReceivedBanknotes  Decimal? @map("actual_received_banknotes") @db.Decimal(10, 2)
+  reviewClaimedAt DateTime? @map("review_claimed_at") @db.Timestamptz(6)
+  reviewClaimedBy String?  @map("review_claimed_by") @db.VarChar(255)
   created_at      DateTime @db.Timestamptz(6)
   updated_at      DateTime @db.Timestamptz(6)
 
@@ -299,6 +312,7 @@ model collections {
   @@index([technicianId])
   @@index([date])
   @@index([handoverId])
+  @@index([status])
 }
 
 /// Здача інкасації техніком касиру
@@ -318,6 +332,48 @@ model CollectionHandover {
   @@index([cashierId])
   @@index([createdAt])
   @@map("collection_handovers")
+}
+
+/// Спільна стрічка коментарів по інкасації
+model CollectionComment {
+  id           Int      @id @default(autoincrement())
+  collectionId Int      @map("collection_id")
+  authorRole   String   @map("author_role") @db.VarChar(32)
+  authorName   String   @map("author_name") @db.VarChar(255)
+  authorId     String?  @map("author_id") @db.VarChar(255)
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([collectionId])
+  @@map("collection_comments")
+}
+
+/// Журнал переходів статусу інкасації
+model CollectionStatusEvent {
+  id           Int      @id @default(autoincrement())
+  collectionId Int      @map("collection_id")
+  fromStatus   String?  @map("from_status") @db.VarChar(32)
+  toStatus     String   @map("to_status") @db.VarChar(32)
+  actorRole    String   @map("actor_role") @db.VarChar(32)
+  actorName    String   @map("actor_name") @db.VarChar(255)
+  actorId      String?  @map("actor_id") @db.VarChar(255)
+  payload      String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([collectionId])
+  @@index([createdAt])
+  @@map("collection_status_events")
+}
+
+/// Антифрод: нагадування «на руках > 7 днів»
+model CollectionAntifraudReminder {
+  id           Int      @id @default(autoincrement())
+  collectionId Int      @unique @map("collection_id")
+  technicianId Int?     @map("technician_id")
+  sentAt       DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  @@index([technicianId])
+  @@map("collection_antifraud_reminders")
 }
 
 /// Відсутня інкасація після закриття перерахунку всіх пакетів здачі

@@ -43,11 +43,23 @@ export async function PATCH(
     const body = await req.json();
     const missing = Boolean(body?.missing);
     const actual = missing ? null : parseMoney(body?.actualReceived);
+    const actualCoins = missing ? null : parseMoney(body?.actualCoins);
+    const actualBanknotes = missing ? null : parseMoney(body?.actualBanknotes);
+    const comment =
+      typeof body?.comment === "string" ? body.comment : null;
 
     const result = await applyCollectionRecount({
       collectionId: id,
       missing,
       actualReceived: actual,
+      actualCoins,
+      actualBanknotes,
+      comment,
+      actor: {
+        role: "cashier",
+        id: cashier.id,
+        name: cashier.name || `Касир #${cashier.id}`,
+      },
     });
 
     return NextResponse.json(result);
@@ -60,6 +72,14 @@ export async function PATCH(
     }
     if (code === "AMOUNT_REQUIRED") {
       return new NextResponse("Вкажіть фактично отриману суму", {
+        status: 400,
+      });
+    }
+    if (code === "ALREADY_CLOSED") {
+      return new NextResponse("Інкасацію вже закрито вручну", { status: 400 });
+    }
+    if (code === "REVIEW_CLAIMED") {
+      return new NextResponse("Звіряльник уже взяв інкасацію в роботу", {
         status: 400,
       });
     }

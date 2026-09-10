@@ -1,6 +1,7 @@
 import prismadb from "@/lib/prismadb";
-import { cashierMachineLabel } from "@/lib/collection-fields";
-import { closeHandoverRecountIfDone } from "@/lib/collection-recount";
+import { addCashierExtraPackage } from "@/lib/collection-lifecycle";
+import { ensureCollectionMvpSchema } from "@/lib/collection-schema";
+import { asInt, intList } from "@/lib/collection-sql";
 
 export type PendingHandoverStats = {
   collectionCount: number;
@@ -33,18 +34,6 @@ type HandoverRow = {
   recount_closed_at: Date | null;
 };
 
-function asInt(n: number) {
-  const v = Number(n);
-  if (!Number.isInteger(v) || v < 0) {
-    throw new Error("Invalid int");
-  }
-  return v;
-}
-
-function intList(ids: number[]) {
-  return ids.map(asInt).join(",");
-}
-
 function mapHandover(r: HandoverRow): HandoverRecord {
   return {
     id: r.id,
@@ -72,10 +61,7 @@ let noDeviceColReady = false;
 
 export async function ensureCollectionsNoDeviceDataColumn() {
   if (noDeviceColReady) return;
-  await prismadb.$executeRawUnsafe(`
-    ALTER TABLE collections
-    ADD COLUMN IF NOT EXISTS no_device_data BOOLEAN NOT NULL DEFAULT FALSE
-  `);
+  await ensureCollectionMvpSchema();
   noDeviceColReady = true;
 }
 
@@ -128,33 +114,40 @@ export async function getPendingHandoverStats(
   technicianId: number
 ): Promise<PendingHandoverStats> {
   try {
-    const since = await getLastHandoverAt(technicianId);
+    await ensureCollectionMvpSchema();
+    const techId = asInt(technicianId);
     const machineIds = await technicianMachineIds(technicianId);
+    const machineFilter =
+      machineIds.length > 0
+        ? ` OR c.device_id IN (${intList(machineIds)})`
+        : "";
 
-    const rows = machineIds.length
-      ? await prismadb.collections.findMany({
-          where: { device_id: { in: machineIds } },
-          select: { id: true, device_id: true, date: true },
-        })
-      : await prismadb.collections.findMany({
-          where: { technicianId },
-          select: { id: true, device_id: true, date: true },
-        });
-
-    const afterCutoff = since
-      ? rows.filter((r) => r.date.getTime() > since.getTime())
-      : rows;
+    const rows = await prismadb.$queryRawUnsafe<
+      Array<{ id: number; device_id: number | null; date: Date }>
+    >(
+      `SELECT c.id, c.device_id, c.date
+       FROM collections c
+       WHERE c."handoverId" IS NULL
+         AND COALESCE(c.status, 'on_hand') = 'on_hand'
+         AND c.date >= TIMESTAMPTZ '2026-09-01 00:00:00+03'
+         AND (c."technicianId" = ${techId}${machineFilter})`
+    );
 
     const machines = new Set<number>();
-    for (const row of afterCutoff) {
+    for (const row of rows) {
       if (row.device_id != null) machines.add(row.device_id);
     }
 
+    const latest = rows.reduce<Date | null>((acc, row) => {
+      if (!acc || row.date.getTime() > acc.getTime()) return row.date;
+      return acc;
+    }, null);
+
     return {
-      collectionCount: afterCutoff.length,
+      collectionCount: rows.length,
       machineCount: machines.size,
-      collectionIds: afterCutoff.map((r) => r.id),
-      since: since ? since.toISOString() : null,
+      collectionIds: rows.map((r) => r.id),
+      since: latest ? latest.toISOString() : null,
     };
   } catch (error) {
     console.error("[HANDOVER_PENDING]", error);
@@ -220,7 +213,7 @@ export async function createHandover(input: {
         asInt(row.id) +
         ', "technicianId" = COALESCE("technicianId", ' +
         technicianId +
-        "), updated_at = NOW() WHERE id IN (" +
+        "), status = 'handed', updated_at = NOW() WHERE id IN (" +
         intList(pending.collectionIds) +
         ') AND "handoverId" IS NULL'
     );
@@ -231,75 +224,18 @@ export async function createHandover(input: {
 
 export async function addManualHandoverPackage(input: {
   cashierId: number;
+  cashierName?: string;
   handoverId: number;
   deviceId: number;
   amount: number;
+  comment?: string | null;
 }): Promise<{ collectionId: number; handoverClosed: boolean }> {
-  await ensureCollectionsNoDeviceDataColumn();
-
-  const cashierId = asInt(input.cashierId);
-  const handoverId = asInt(input.handoverId);
-  const deviceId = asInt(input.deviceId);
-  if (!Number.isFinite(input.amount) || input.amount < 0) {
-    throw new Error("AMOUNT_REQUIRED");
-  }
-  const amount = Math.round(input.amount * 100) / 100;
-
-  const owned = await prismadb.$queryRawUnsafe<
-    Array<{
-      id: number;
-      technician_id: number;
-      received_packages: number;
-      recount_closed_at: Date | null;
-    }>
-  >(
-    `SELECT id, technician_id, received_packages, recount_closed_at
-     FROM collection_handovers
-     WHERE id = ${handoverId} AND cashier_id = ${cashierId}
-     LIMIT 1`
-  );
-  const handover = owned[0];
-  if (!handover) throw new Error("NOT_FOUND");
-  if (handover.recount_closed_at) throw new Error("HANDOVER_CLOSED");
-
-  const machine = await prismadb.vending_machines.findFirst({
-    where: { id: deviceId },
-    select: { id: true, location: true, address: true, name: true },
+  return addCashierExtraPackage({
+    cashierId: input.cashierId,
+    cashierName: input.cashierName || "Касир",
+    handoverId: input.handoverId,
+    deviceId: input.deviceId,
+    amount: input.amount,
+    comment: input.comment,
   });
-  const location =
-    machine?.location?.trim() || machine?.address?.trim() || null;
-  const label = cashierMachineLabel(deviceId, location, null);
-  const labelSql = label.replace(/'/g, "''");
-  const noteSql = "Апарат не передав дані інкасації".replace(/'/g, "''");
-
-  const inserted = await prismadb.$queryRawUnsafe<Array<{ id: number }>>(
-    `INSERT INTO collections (
-       date, count_banknotes, sum_banknotes, count_coins, sum_coins, total_sum,
-       note, machine, device_id, "technicianId", "handoverId",
-       "actualReceived", "recountStatus", no_device_data, created_at, updated_at
-     ) VALUES (
-       NOW(), 0, 0, 0, 0, ${amount.toFixed(2)},
-       '${noteSql}', '${labelSql}', ${deviceId}, ${asInt(handover.technician_id)}, ${handoverId},
-       ${amount.toFixed(2)}, 'done', TRUE, NOW(), NOW()
-     )
-     RETURNING id`
-  );
-  const collectionId = inserted[0]?.id;
-  if (!collectionId) throw new Error("CREATE_FAILED");
-
-  await prismadb.$executeRawUnsafe(`
-    UPDATE collection_handovers
-    SET collection_count = (
-          SELECT COUNT(*)::int FROM collections WHERE "handoverId" = ${handoverId}
-        ),
-        machine_count = (
-          SELECT COUNT(DISTINCT device_id)::int
-          FROM collections
-          WHERE "handoverId" = ${handoverId} AND device_id IS NOT NULL
-        )
-    WHERE id = ${handoverId}
-  `);
-
-  const close = await closeHandoverRecountIfDone(handoverId);
-  return { collectionId, handoverClosed: close.closed };
 }

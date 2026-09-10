@@ -26,8 +26,13 @@ function recountErrorResponse(error: unknown) {
       status: 400,
     });
   }
-  if (code === "AMOUNT_REQUIRED") {
-    return new NextResponse("Вкажіть фактично отриману суму", { status: 400 });
+  if (code === "ALREADY_CLOSED") {
+    return new NextResponse("Інкасацію вже закрито вручну", { status: 400 });
+  }
+  if (code === "REVIEW_CLAIMED") {
+    return new NextResponse("Звіряльник уже взяв інкасацію в роботу", {
+      status: 400,
+    });
   }
   return null;
 }
@@ -52,6 +57,7 @@ export async function PATCH(
       collectionId: id,
       missing,
       actualReceived: actual,
+      actor: { role: "reconciler", name: "Кабінет" },
     });
 
     return NextResponse.json(result);

@@ -10,6 +10,8 @@ import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TicketsBlock } from "@/components/tickets-block";
+import { CollectionCommentsThread } from "@/components/collection-comments";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   CashierPublicHandover,
   CashierPublicPackage,
@@ -23,7 +25,7 @@ function mismatch(h: Pick<CashierPublicHandover, "claimedPackages" | "receivedPa
 
 export function CashierHandoversClient({
   phone,
-  technicians,
+  technicians: _technicians,
   handovers,
   packages,
   tickets = [],
@@ -36,88 +38,10 @@ export function CashierHandoversClient({
   tickets?: TicketThread[];
   openTicketCollectionIds?: number[];
 }) {
-  const router = useRouter();
-  const [creating, setCreating] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [technicianId, setTechnicianId] = useState("");
-  const [claimed, setClaimed] = useState("");
-  const [received, setReceived] = useState("");
-  const [pending, setPending] = useState<{
-    collectionCount: number;
-    machineCount: number;
-    since: string | null;
-  } | null>(null);
-  const [loadingPending, setLoadingPending] = useState(false);
 
   const current = handovers.filter((h) => !h.recountClosed);
   const archive = handovers.filter((h) => h.recountClosed);
-
-  const selectedTech = useMemo(
-    () => technicians.find((t) => String(t.id) === technicianId) || null,
-    [technicians, technicianId]
-  );
-
-  const loadPending = async (id: string) => {
-    setTechnicianId(id);
-    setPending(null);
-    if (!id) return;
-    try {
-      setLoadingPending(true);
-      const { data } = await axios.get<{
-        pending: {
-          collectionCount: number;
-          machineCount: number;
-          since: string | null;
-        };
-      }>(`/api/public/cashier/${phone}/handovers`, {
-        params: { technicianId: id },
-      });
-      setPending(data.pending);
-    } catch {
-      toast.error("Не вдалося порахувати інкасації");
-    } finally {
-      setLoadingPending(false);
-    }
-  };
-
-  const reset = () => {
-    setCreating(false);
-    setTechnicianId("");
-    setClaimed("");
-    setReceived("");
-    setPending(null);
-  };
-
-  const onSubmit = async () => {
-    if (!technicianId) {
-      toast.error("Оберіть техніка");
-      return;
-    }
-    if (!/^\d+$/.test(claimed.trim()) || !/^\d+$/.test(received.trim())) {
-      toast.error("Вкажіть кількість пакетів");
-      return;
-    }
-    try {
-      setBusy(true);
-      await axios.post(`/api/public/cashier/${phone}/handovers`, {
-        technicianId: Number(technicianId),
-        claimedPackages: Number(claimed.trim()),
-        receivedPackages: Number(received.trim()),
-      });
-      toast.success("Здачу інкасації збережено");
-      reset();
-      router.refresh();
-    } catch (error) {
-      const message =
-        axios.isAxiosError(error) && typeof error.response?.data === "string"
-          ? error.response.data
-          : "Не вдалося зберегти здачу";
-      toast.error(message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -131,93 +55,17 @@ export function CashierHandoversClient({
       ) : null}
 
       <section className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-50 bg-sky-50/60 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
+        <div className="border-b border-sky-50 bg-sky-50/60 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
           <span className="text-sm font-medium text-sky-900 dark:text-sky-200">
-            Здача інкасації
+            Здача від техніка
           </span>
-          {!creating ? (
-            <Button size="sm" onClick={() => setCreating(true)}>
-              Додати здачу інкасації
-            </Button>
-          ) : null}
+          <p className="mt-1 text-xs text-slate-500">
+            Технік відмічає пакети у своєму списку. Тут зʼявляється список на
+            прийом: № апарата та адреса, без суми бази.
+          </p>
         </div>
 
-        {creating ? (
-          <div className="space-y-4 px-4 py-4">
-            <div className="space-y-1">
-              <label className="text-sm text-slate-500">Технік</label>
-              <select
-                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
-                value={technicianId}
-                disabled={busy}
-                onChange={(e) => void loadPending(e.target.value)}
-              >
-                <option value="">Оберіть техніка</option>
-                {technicians.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {loadingPending ? (
-              <p className="text-sm text-slate-400">Рахунок інкасацій…</p>
-            ) : pending && selectedTech ? (
-              <div className="rounded-xl bg-slate-50 px-3 py-3 text-sm dark:bg-slate-800/60">
-                <p className="font-medium text-slate-800 dark:text-slate-100">
-                  Інкасованих автоматів за БД: {pending.machineCount}
-                </p>
-                <p className="mt-1 text-slate-500">
-                  Інкасацій з попередньої здачі: {pending.collectionCount}
-                </p>
-              </div>
-            ) : null}
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm text-slate-500">
-                  Заявлено пакетів техніком
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={claimed}
-                  disabled={busy}
-                  onChange={(e) => setClaimed(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm text-slate-500">
-                  Отримано пакетів касиром
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={received}
-                  disabled={busy}
-                  onChange={(e) => setReceived(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" disabled={busy} onClick={() => void onSubmit()}>
-                Зберегти здачу
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={reset}
-              >
-                Скасувати
-              </Button>
-            </div>
-          </div>
-        ) : current.length > 0 ? (
+        {current.length > 0 ? (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {current.map((h) => (
               <li key={h.id}>
@@ -233,7 +81,7 @@ export function CashierHandoversClient({
           </ul>
         ) : (
           <p className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            Немає відкритої здачі. Додайте нову або відкрийте архів.
+            Немає відкритої здачі. Технік передає пакети зі свого списку.
           </p>
         )}
       </section>
@@ -314,6 +162,7 @@ function HandoverCard({
   const [manualOpen, setManualOpen] = useState(false);
   const [deviceId, setDeviceId] = useState("");
   const [amount, setAmount] = useState("");
+  const [comment, setComment] = useState("");
   const [manualBusy, setManualBusy] = useState(false);
 
   const needManual = Math.max(
@@ -358,7 +207,7 @@ function HandoverCard({
       setManualBusy(true);
       const { data } = await axios.post(
         `/api/public/cashier/${phone}/handovers/${handover.id}/manual-package`,
-        { deviceId: id, amount: parsed }
+        { deviceId: id, amount: parsed, comment: comment.trim() || null }
       );
       toast.success(
         data?.handoverClosed
@@ -367,6 +216,7 @@ function HandoverCard({
       );
       setDeviceId("");
       setAmount("");
+      setComment("");
       setManualOpen(false);
       setPackages(null);
       router.refresh();
@@ -431,13 +281,13 @@ function HandoverCard({
           >
             {manualOpen
               ? "Сховати форму"
-              : "Додати пакет без даних апарата"}
+              : "Додати зайвий пакет"}
           </button>
           {manualOpen ? (
             <div className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
               <p className="text-xs text-amber-900/80 dark:text-amber-200/80">
-                Якщо апарат не передав інкасацію — вкажіть № апарата і суму
-                з пакета.
+                Пакет, якого не було в списку техніка. Вкажіть № апарата і
+                фактичну суму з кулька.
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
@@ -466,6 +316,13 @@ function HandoverCard({
                   />
                 </div>
               </div>
+              <Textarea
+                rows={2}
+                placeholder="Коментар (необовʼязково)"
+                value={comment}
+                disabled={manualBusy}
+                onChange={(e) => setComment(e.target.value)}
+              />
               <Button
                 size="sm"
                 disabled={manualBusy}
@@ -550,6 +407,9 @@ function CashierPackages({
   const router = useRouter();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [actual, setActual] = useState<Record<number, string>>({});
+  const [comment, setComment] = useState<Record<number, string>>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [openComments, setOpenComments] = useState<Set<number>>(new Set());
   const [filterTechId, setFilterTechId] = useState("");
   const [filterDevice, setFilterDevice] = useState("");
 
@@ -590,7 +450,12 @@ function CashierPackages({
       setBusyId(pkg.id);
       const { data: result } = await axios.patch(
         `/api/public/cashier/${phone}/recount/${pkg.id}`,
-        missing ? { missing: true } : { actualReceived: parsed }
+        missing
+          ? { missing: true, comment: comment[pkg.id]?.trim() || null }
+          : {
+              actualReceived: parsed,
+              comment: comment[pkg.id]?.trim() || null,
+            }
       );
       if (result?.handoverClosed) {
         toast.success(
@@ -675,6 +540,8 @@ function CashierPackages({
             const busy = busyId === pkg.id;
             const done = pkg.recountStatus === "done";
             const missing = pkg.recountStatus === "missing";
+            const showForm = (!done && !missing) || editingId === pkg.id;
+            const commentsOpen = openComments.has(pkg.id);
             return (
               <li key={pkg.id} className="space-y-3 px-4 py-4">
                 <div>
@@ -683,23 +550,50 @@ function CashierPackages({
                   </p>
                   <p className="text-xs text-slate-400">
                     {pkg.technicianName} · {pkg.dateLabel} {pkg.timeLabel}
+                    {pkg.isPhantom ? " · фантом" : ""}
+                    {pkg.isManual ? " · вручну" : ""}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                    {pkg.statusLabel}
                   </p>
                 </div>
-                {missing ? (
+                {pkg.actualReceived != null && !showForm ? (
+                  <p className="text-sm tabular-nums text-slate-600">
+                    Ваш факт: {pkg.actualReceived.toLocaleString("uk-UA", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    грн
+                  </p>
+                ) : null}
+                {missing && !showForm ? (
                   <p className="text-sm font-medium text-rose-700">Відсутній</p>
-                ) : done ? (
-                  <p className="text-sm text-slate-500">Перераховано</p>
-                ) : (
+                ) : null}
+                {showForm ? (
                   <>
                     <Input
                       type="number"
                       min={0}
                       step="0.01"
                       placeholder="Фактично отримано, грн"
-                      value={actual[pkg.id] ?? ""}
+                      value={
+                        actual[pkg.id] ??
+                        (pkg.actualReceived != null
+                          ? String(pkg.actualReceived)
+                          : "")
+                      }
                       disabled={busy}
                       onChange={(e) =>
                         setActual((m) => ({ ...m, [pkg.id]: e.target.value }))
+                      }
+                    />
+                    <Textarea
+                      rows={2}
+                      placeholder="Коментар (стан кулька, маркування…)"
+                      value={comment[pkg.id] ?? ""}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setComment((m) => ({ ...m, [pkg.id]: e.target.value }))
                       }
                     />
                     <div className="flex flex-wrap gap-2">
@@ -718,9 +612,47 @@ function CashierPackages({
                       >
                         Відсутній
                       </Button>
+                      {editingId === pkg.id ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => setEditingId(null)}
+                        >
+                          Скасувати
+                        </Button>
+                      ) : null}
                     </div>
                   </>
-                )}
+                ) : pkg.canEdit ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingId(pkg.id)}
+                  >
+                    Змінити
+                  </Button>
+                ) : null}
+                <button
+                  type="button"
+                  className="text-xs font-medium text-sky-700 dark:text-sky-300"
+                  onClick={() =>
+                    setOpenComments((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(pkg.id)) next.delete(pkg.id);
+                      else next.add(pkg.id);
+                      return next;
+                    })
+                  }
+                >
+                  {commentsOpen ? "Сховати коментарі" : "Коментарі"}
+                </button>
+                {commentsOpen ? (
+                  <CollectionCommentsThread
+                    compact
+                    endpoint={`/api/public/cashier/${phone}/collections/${pkg.id}/comments`}
+                  />
+                ) : null}
               </li>
             );
           })}
