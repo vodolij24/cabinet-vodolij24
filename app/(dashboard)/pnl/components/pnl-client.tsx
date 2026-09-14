@@ -124,6 +124,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
   const [data, setData] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [openTech, setOpenTech] = useState(false);
+  const [channels, setChannels] = useState(initial.channels);
   const [manual, setManual] = useState(initial.manual);
   const [staticCosts, setStaticCosts] = useState(initial.staticCosts);
   const [sheetDraft, setSheetDraft] = useState(initial.sheets);
@@ -131,6 +132,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
 
   useEffect(() => {
     setData(initial);
+    setChannels(initial.channels);
     setManual(initial.manual);
     setStaticCosts(initial.staticCosts);
     setSheetDraft(initial.sheets);
@@ -144,6 +146,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         ...payload,
       });
       setData(next);
+      setChannels(next.channels);
       setManual(next.manual);
       setStaticCosts(next.staticCosts);
       setSheetDraft(next.sheets);
@@ -174,6 +177,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       setBusy(`sheet-${kind}`);
       const { data: next } = await axios.post<PnlPage>("/api/pnl/sheet", fd);
       setData(next);
+      setChannels(next.channels);
       setSheetDraft(next.sheets);
       toast.success("Таблицю розібрано — перевірте суму і прийміть");
     } catch (error) {
@@ -201,17 +205,6 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         hint: "автомати · БД",
       },
       { label: "Інші доходи", amount: manual.otherIncome, hint: "вручну" },
-      { label: "Готівка Кміть", amount: manual.kmitCash, hint: "вручну" },
-      {
-        label: PNL_SHEET_LABELS.kmitBn,
-        amount: sheetDraft.kmitBn.amount ?? 0,
-        hint: "таблиця",
-      },
-      {
-        label: PNL_SHEET_LABELS.pozdnyakovaBn,
-        amount: sheetDraft.pozdnyakovaBn.amount ?? 0,
-        hint: "таблиця",
-      },
     ];
     const expenses: BalLine[] = [
       {
@@ -350,6 +343,79 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-medium">Каса / безготівка</h3>
+            <p className="text-xs text-muted-foreground">
+              Довідково — не входить у доходи й операційний прибуток.
+            </p>
+          </div>
+          <FormActions
+            accepted={channels.accepted}
+            busy={busy === "channels"}
+            onSave={() =>
+              void patch(
+                { section: "channels", action: "save", ...channels },
+                "channels"
+              )
+            }
+            onAccept={() =>
+              void patch(
+                { section: "channels", action: "accept", ...channels },
+                "channels"
+              )
+            }
+            onEdit={() =>
+              void patch(
+                { section: "channels", action: "edit", ...channels },
+                "channels"
+              )
+            }
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <MoneyField
+            label="Готівка Теребенець"
+            value={channels.terebenetsCash}
+            disabled={channels.accepted}
+            onChange={(v) =>
+              setChannels((s) => ({ ...s, terebenetsCash: num(v) }))
+            }
+          />
+          <MoneyField
+            label="Безготівка Теребенець"
+            value={channels.terebenetsCashless}
+            disabled={channels.accepted}
+            onChange={(v) =>
+              setChannels((s) => ({ ...s, terebenetsCashless: num(v) }))
+            }
+          />
+          <MoneyField
+            label="Безготівка Кміть"
+            value={channels.kmitCashless}
+            disabled={channels.accepted}
+            onChange={(v) =>
+              setChannels((s) => ({ ...s, kmitCashless: num(v) }))
+            }
+          />
+          <MoneyField
+            label="Готівка Кміть"
+            value={channels.kmitCash}
+            disabled={channels.accepted}
+            onChange={(v) => setChannels((s) => ({ ...s, kmitCash: num(v) }))}
+          />
+          <MoneyField
+            label="Безготівка Позднякова"
+            value={channels.pozdnyakovaCashless}
+            disabled={channels.accepted}
+            onChange={(v) =>
+              setChannels((s) => ({ ...s, pozdnyakovaCashless: num(v) }))
+            }
+          />
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-medium">Ручні суми</h3>
           <FormActions
             accepted={manual.accepted}
@@ -374,12 +440,6 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
             value={manual.otherIncome}
             disabled={manual.accepted}
             onChange={(v) => setManual((s) => ({ ...s, otherIncome: num(v) }))}
-          />
-          <MoneyField
-            label="Готівка Кміть"
-            value={manual.kmitCash}
-            disabled={manual.accepted}
-            onChange={(v) => setManual((s) => ({ ...s, kmitCash: num(v) }))}
           />
           <MoneyField
             label="Загальна оренда"
@@ -547,6 +607,10 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
 
       <section className="space-y-3">
         <h3 className="font-medium">Таблиці (ШІ аналіз)</h3>
+        <p className="text-sm text-muted-foreground">
+          Кміть БН і Позднякова БН підставляють суми в блок «Каса / безготівка».
+          Комуналка і податки лишаються витратами.
+        </p>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {PNL_SHEET_KINDS.map((kind) => {
             const slot = sheetDraft[kind];

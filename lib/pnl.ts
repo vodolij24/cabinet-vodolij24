@@ -15,6 +15,7 @@ import {
   type PnlSheetKind,
 } from "@/lib/pnl-constants";
 import type {
+  PnlChannelValues,
   PnlManualValues,
   PnlPage,
   PnlSheetSlot,
@@ -22,6 +23,7 @@ import type {
 } from "@/lib/pnl-types";
 
 export type {
+  PnlChannelValues,
   PnlManualValues,
   PnlPage,
   PnlSheetSlot,
@@ -32,6 +34,11 @@ type PnlRow = {
   period_key: string;
   other_income: unknown;
   kmit_cash: unknown;
+  terebenets_cash: unknown;
+  terebenets_cashless: unknown;
+  kmit_cashless: unknown;
+  pozdnyakova_cashless: unknown;
+  channels_accepted_at: Date | null;
   rent_total: unknown;
   salary_volodymyr: unknown;
   salary_terebenets: unknown;
@@ -144,6 +151,14 @@ export async function ensurePnlTable() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await prismadb.$executeRawUnsafe(`
+    ALTER TABLE monthly_pnl
+      ADD COLUMN IF NOT EXISTS terebenets_cash DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_cashless DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_cashless DOUBLE PRECISION,
+      ADD COLUMN IF NOT EXISTS pozdnyakova_cashless DOUBLE PRECISION,
+      ADD COLUMN IF NOT EXISTS channels_accepted_at TIMESTAMPTZ
+  `);
   tableReady = true;
 }
 
@@ -254,7 +269,6 @@ function mapPage(
   const d = PNL_STATIC_DEFAULTS;
   const manual = {
     otherIncome: moneyOr(row?.other_income),
-    kmitCash: moneyOr(row?.kmit_cash),
     rentTotal: moneyOr(row?.rent_total),
     salaryVolodymyr: moneyOr(row?.salary_volodymyr),
     salaryTerebenets: moneyOr(row?.salary_terebenets),
@@ -305,21 +319,25 @@ function mapPage(
     ),
   };
 
-  const kmitBn = sheets.kmitBn.amount ?? 0;
-  const pozdnyakovaBn = sheets.pozdnyakovaBn.amount ?? 0;
+  const channels = {
+    terebenetsCash: moneyOr(row?.terebenets_cash),
+    terebenetsCashless: moneyOr(row?.terebenets_cashless),
+    kmitCash: moneyOr(row?.kmit_cash),
+    kmitCashless:
+      moneyOrNull(row?.kmit_cashless) ?? (sheets.kmitBn.amount ?? 0),
+    pozdnyakovaCashless:
+      moneyOrNull(row?.pozdnyakova_cashless) ??
+      (sheets.pozdnyakovaBn.amount ?? 0),
+    accepted: row?.channels_accepted_at != null,
+    acceptedAt: isoOrNull(row?.channels_accepted_at ?? null),
+  };
   const utilities = (sheets.utilities.amount ?? 0) + paymentCalendar.utilities;
   const taxes = (sheets.taxes.amount ?? 0) + paymentCalendar.taxes;
   const rentTotal = manual.rentTotal + paymentCalendar.rent;
   const otherExpensesWithCalendar =
     computed.otherExpenses + paymentCalendar.other;
 
-  const income = round2(
-    computed.totalRevenue +
-      manual.otherIncome +
-      manual.kmitCash +
-      kmitBn +
-      pozdnyakovaBn
-  );
+  const income = round2(computed.totalRevenue + manual.otherIncome);
   const expenses = round2(
     computed.fuel +
       otherExpensesWithCalendar +
@@ -350,6 +368,7 @@ function mapPage(
       otherExpenses: otherExpensesWithCalendar,
       paymentCalendar,
     },
+    channels,
     manual,
     staticCosts,
     sheets,
@@ -384,7 +403,6 @@ export async function savePnlManual(
       ? prismadb.$executeRaw`
           UPDATE monthly_pnl SET
             other_income = ${values.otherIncome},
-            kmit_cash = ${values.kmitCash},
             rent_total = ${values.rentTotal},
             salary_volodymyr = ${values.salaryVolodymyr},
             salary_terebenets = ${values.salaryTerebenets},
@@ -397,7 +415,6 @@ export async function savePnlManual(
         ? prismadb.$executeRaw`
             UPDATE monthly_pnl SET
               other_income = ${values.otherIncome},
-              kmit_cash = ${values.kmitCash},
               rent_total = ${values.rentTotal},
               salary_volodymyr = ${values.salaryVolodymyr},
               salary_terebenets = ${values.salaryTerebenets},
@@ -409,12 +426,53 @@ export async function savePnlManual(
         : prismadb.$executeRaw`
             UPDATE monthly_pnl SET
               other_income = ${values.otherIncome},
-              kmit_cash = ${values.kmitCash},
               rent_total = ${values.rentTotal},
               salary_volodymyr = ${values.salaryVolodymyr},
               salary_terebenets = ${values.salaryTerebenets},
               marketing = ${values.marketing},
               sim_cards = ${values.simCards},
+              updated_at = NOW()
+            WHERE period_key = ${periodKey}`;
+  await acceptedSql;
+  return getPnlPage(periodKey);
+}
+
+export async function savePnlChannels(
+  periodKey: string,
+  values: PnlChannelValues,
+  action: "save" | "accept" | "edit"
+) {
+  await ensurePnlRow(periodKey);
+  const acceptedSql =
+    action === "accept"
+      ? prismadb.$executeRaw`
+          UPDATE monthly_pnl SET
+            terebenets_cash = ${values.terebenetsCash},
+            terebenets_cashless = ${values.terebenetsCashless},
+            kmit_cashless = ${values.kmitCashless},
+            kmit_cash = ${values.kmitCash},
+            pozdnyakova_cashless = ${values.pozdnyakovaCashless},
+            channels_accepted_at = NOW(),
+            updated_at = NOW()
+          WHERE period_key = ${periodKey}`
+      : action === "edit"
+        ? prismadb.$executeRaw`
+            UPDATE monthly_pnl SET
+              terebenets_cash = ${values.terebenetsCash},
+              terebenets_cashless = ${values.terebenetsCashless},
+              kmit_cashless = ${values.kmitCashless},
+              kmit_cash = ${values.kmitCash},
+              pozdnyakova_cashless = ${values.pozdnyakovaCashless},
+              channels_accepted_at = NULL,
+              updated_at = NOW()
+            WHERE period_key = ${periodKey}`
+        : prismadb.$executeRaw`
+            UPDATE monthly_pnl SET
+              terebenets_cash = ${values.terebenetsCash},
+              terebenets_cashless = ${values.terebenetsCashless},
+              kmit_cashless = ${values.kmitCashless},
+              kmit_cash = ${values.kmitCash},
+              pozdnyakova_cashless = ${values.pozdnyakovaCashless},
               updated_at = NOW()
             WHERE period_key = ${periodKey}`;
   await acceptedSql;
@@ -510,6 +568,28 @@ export function sheetAcceptedAt(row: PnlRow, kind: PnlSheetKind): Date | null {
   return row.taxes_accepted_at;
 }
 
+async function syncChannelFromSheet(
+  periodKey: string,
+  kind: PnlSheetKind,
+  amount: number,
+  channelsLocked: boolean
+) {
+  if (channelsLocked) return;
+  if (kind === "kmitBn") {
+    await prismadb.$executeRaw`
+      UPDATE monthly_pnl SET
+        kmit_cashless = ${amount},
+        updated_at = NOW()
+      WHERE period_key = ${periodKey}`;
+  } else if (kind === "pozdnyakovaBn") {
+    await prismadb.$executeRaw`
+      UPDATE monthly_pnl SET
+        pozdnyakova_cashless = ${amount},
+        updated_at = NOW()
+      WHERE period_key = ${periodKey}`;
+  }
+}
+
 export async function savePnlSheetUpload(
   periodKey: string,
   kind: PnlSheetKind,
@@ -535,6 +615,12 @@ export async function savePnlSheetUpload(
     input.note,
     periodKey
   );
+  await syncChannelFromSheet(
+    periodKey,
+    kind,
+    input.amount,
+    row.channels_accepted_at != null
+  );
   return getPnlPage(periodKey);
 }
 
@@ -544,7 +630,7 @@ export async function savePnlSheetValues(
   values: { amount: number; note: string },
   action: "save" | "accept" | "edit"
 ) {
-  await ensurePnlRow(periodKey);
+  const row = await ensurePnlRow(periodKey);
   const c = SHEET_COLS[kind];
   const acceptedExpr =
     action === "accept" ? "NOW()" : action === "edit" ? "NULL" : c.accepted;
@@ -558,6 +644,12 @@ export async function savePnlSheetValues(
     values.amount,
     values.note,
     periodKey
+  );
+  await syncChannelFromSheet(
+    periodKey,
+    kind,
+    values.amount,
+    row.channels_accepted_at != null
   );
   return getPnlPage(periodKey);
 }

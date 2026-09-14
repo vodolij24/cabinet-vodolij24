@@ -25,9 +25,17 @@ export type PnlPage = {
     techSalariesTotal: number;
     paymentCalendar: PaymentCalendarPnlTotals;
   };
+  channels: {
+    terebenetsCash: number;
+    terebenetsCashless: number;
+    kmitCashless: number;
+    kmitCash: number;
+    pozdnyakovaCashless: number;
+    accepted: boolean;
+    acceptedAt: string | null;
+  };
   manual: {
     otherIncome: number;
-    kmitCash: number;
     rentTotal: number;
     salaryVolodymyr: number;
     salaryTerebenets: number;
@@ -55,9 +63,16 @@ export type PnlPage = {
   };
 };
 
+export type PnlChannelValues = {
+  terebenetsCash: number;
+  terebenetsCashless: number;
+  kmitCashless: number;
+  kmitCash: number;
+  pozdnyakovaCashless: number;
+};
+
 export type PnlManualValues = {
   otherIncome: number;
-  kmitCash: number;
   rentTotal: number;
   salaryVolodymyr: number;
   salaryTerebenets: number;

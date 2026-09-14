@@ -6,9 +6,11 @@ import { isPeriodKey } from "@/lib/finance-month";
 import { kyivPeriodKey, isPnlSheetKind } from "@/lib/pnl-constants";
 import {
   getPnlPage,
+  savePnlChannels,
   savePnlManual,
   savePnlSheetValues,
   savePnlStatic,
+  type PnlChannelValues,
   type PnlManualValues,
   type PnlStaticValues,
 } from "@/lib/pnl";
@@ -69,10 +71,24 @@ export async function PATCH(req: Request) {
     }
     const section = body.section;
 
+    if (section === "channels") {
+      const values: PnlChannelValues = {
+        terebenetsCash: moneyField(body, "terebenetsCash") ?? -1,
+        terebenetsCashless: moneyField(body, "terebenetsCashless") ?? -1,
+        kmitCashless: moneyField(body, "kmitCashless") ?? -1,
+        kmitCash: moneyField(body, "kmitCash") ?? -1,
+        pozdnyakovaCashless: moneyField(body, "pozdnyakovaCashless") ?? -1,
+      };
+      if (Object.values(values).some((n) => n < 0)) {
+        return new NextResponse("Некоректна сума", { status: 400 });
+      }
+      const data = await savePnlChannels(periodKey, values, action);
+      return NextResponse.json(data);
+    }
+
     if (section === "manual") {
       const values: PnlManualValues = {
         otherIncome: moneyField(body, "otherIncome") ?? -1,
-        kmitCash: moneyField(body, "kmitCash") ?? -1,
         rentTotal: moneyField(body, "rentTotal") ?? -1,
         salaryVolodymyr: moneyField(body, "salaryVolodymyr") ?? -1,
         salaryTerebenets: moneyField(body, "salaryTerebenets") ?? -1,
