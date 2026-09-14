@@ -129,7 +129,7 @@ export async function getPendingHandoverStats(
        FROM collections c
        WHERE c."handoverId" IS NULL
          AND COALESCE(c.status, 'on_hand') = 'on_hand'
-         AND c.date >= TIMESTAMPTZ '2026-09-01 00:00:00+03'
+         AND c.date >= TIMESTAMPTZ '2026-09-10 00:00:00+03'
          AND (c."technicianId" = ${techId}${machineFilter})`
     );
 

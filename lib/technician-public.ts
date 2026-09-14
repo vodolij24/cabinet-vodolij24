@@ -124,7 +124,7 @@ const emptyCollections = (): TechnicianPublicCollections => ({
 });
 
 /** Technician list: only unhanded collections from this date (Kyiv). */
-const UNHANDED_FROM_SQL = "TIMESTAMPTZ '2026-09-01 00:00:00+03'";
+const UNHANDED_FROM_SQL = "TIMESTAMPTZ '2026-09-10 00:00:00+03'";
 
 type CollectionListRow = {
   id: number;
