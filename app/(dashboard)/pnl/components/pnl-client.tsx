@@ -21,7 +21,7 @@ import {
   PNL_SHEET_SIGN,
   type PnlSheetKind,
 } from "@/lib/pnl-constants";
-import type { PnlPage } from "@/lib/pnl-types";
+import type { PnlBnCosts, PnlPage } from "@/lib/pnl-types";
 import type {
   PaymentCalendarPnlTotals,
   PaymentPnlTarget,
@@ -125,6 +125,10 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [openTech, setOpenTech] = useState(false);
   const [channels, setChannels] = useState(initial.channels);
+  const [kmitBnCosts, setKmitBnCosts] = useState(initial.kmitBnCosts);
+  const [pozdnyakovaBnCosts, setPozdnyakovaBnCosts] = useState(
+    initial.pozdnyakovaBnCosts
+  );
   const [manual, setManual] = useState(initial.manual);
   const [staticCosts, setStaticCosts] = useState(initial.staticCosts);
   const [sheetDraft, setSheetDraft] = useState(initial.sheets);
@@ -133,6 +137,8 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
   useEffect(() => {
     setData(initial);
     setChannels(initial.channels);
+    setKmitBnCosts(initial.kmitBnCosts);
+    setPozdnyakovaBnCosts(initial.pozdnyakovaBnCosts);
     setManual(initial.manual);
     setStaticCosts(initial.staticCosts);
     setSheetDraft(initial.sheets);
@@ -147,6 +153,8 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       });
       setData(next);
       setChannels(next.channels);
+      setKmitBnCosts(next.kmitBnCosts);
+      setPozdnyakovaBnCosts(next.pozdnyakovaBnCosts);
       setManual(next.manual);
       setStaticCosts(next.staticCosts);
       setSheetDraft(next.sheets);
@@ -280,6 +288,56 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         hint: pc.taxes > 0 ? "таблиця + календар" : "таблиця",
       },
       ...calendarBalLines(pc, "taxes"),
+      {
+        label: "Позднякова · комунальні",
+        amount: pozdnyakovaBnCosts.utilities,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Позднякова · оренда",
+        amount: pozdnyakovaBnCosts.rent,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Позднякова · податки",
+        amount: pozdnyakovaBnCosts.taxes,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Позднякова · банк комісія",
+        amount: pozdnyakovaBnCosts.bankFee,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Позднякова · інше",
+        amount: pozdnyakovaBnCosts.other,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Кміть · комунальні",
+        amount: kmitBnCosts.utilities,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Кміть · оренда",
+        amount: kmitBnCosts.rent,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Кміть · податки",
+        amount: kmitBnCosts.taxes,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Кміть · банк комісія",
+        amount: kmitBnCosts.bankFee,
+        hint: "безготівка · витрата",
+      },
+      {
+        label: "Кміть · інше",
+        amount: kmitBnCosts.other,
+        hint: "безготівка · витрата",
+      },
     ];
     const incomeTotal = round2(
       income.reduce((s, r) => s + (r.skipSum ? 0 : r.amount), 0)
@@ -294,7 +352,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       expenseTotal,
       profit: round2(incomeTotal - expenseTotal),
     };
-  }, [data.computed, manual, staticCosts, sheetDraft]);
+  }, [data.computed, manual, staticCosts, sheetDraft, kmitBnCosts, pozdnyakovaBnCosts]);
 
   const profit = live.profit;
 
@@ -413,6 +471,70 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
           />
         </div>
       </section>
+
+      <BnCostBlock
+        title="Безготівка Позднякова"
+        hint="Витрати з рахунку ФОП. Входять у зелений прибуток."
+        costs={pozdnyakovaBnCosts}
+        busy={busy === "pozdnyakovaBnCosts"}
+        onChange={setPozdnyakovaBnCosts}
+        onSave={() =>
+          void patch(
+            {
+              section: "pozdnyakovaBnCosts",
+              action: "save",
+              ...pozdnyakovaBnCosts,
+            },
+            "pozdnyakovaBnCosts"
+          )
+        }
+        onAccept={() =>
+          void patch(
+            {
+              section: "pozdnyakovaBnCosts",
+              action: "accept",
+              ...pozdnyakovaBnCosts,
+            },
+            "pozdnyakovaBnCosts"
+          )
+        }
+        onEdit={() =>
+          void patch(
+            {
+              section: "pozdnyakovaBnCosts",
+              action: "edit",
+              ...pozdnyakovaBnCosts,
+            },
+            "pozdnyakovaBnCosts"
+          )
+        }
+      />
+
+      <BnCostBlock
+        title="Безготівка Кміть"
+        hint="Витрати з рахунку ФОП. Входять у зелений прибуток."
+        costs={kmitBnCosts}
+        busy={busy === "kmitBnCosts"}
+        onChange={setKmitBnCosts}
+        onSave={() =>
+          void patch(
+            { section: "kmitBnCosts", action: "save", ...kmitBnCosts },
+            "kmitBnCosts"
+          )
+        }
+        onAccept={() =>
+          void patch(
+            { section: "kmitBnCosts", action: "accept", ...kmitBnCosts },
+            "kmitBnCosts"
+          )
+        }
+        onEdit={() =>
+          void patch(
+            { section: "kmitBnCosts", action: "edit", ...kmitBnCosts },
+            "kmitBnCosts"
+          )
+        }
+      />
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -868,6 +990,77 @@ function BalanceTable({
         >
           {money(live.profit)}
         </p>
+      </div>
+    </section>
+  );
+}
+
+function BnCostBlock({
+  title,
+  hint,
+  costs,
+  busy,
+  onChange,
+  onSave,
+  onAccept,
+  onEdit,
+}: {
+  title: string;
+  hint: string;
+  costs: PnlBnCosts;
+  busy: boolean;
+  onChange: (next: PnlBnCosts) => void;
+  onSave: () => void;
+  onAccept: () => void;
+  onEdit: () => void;
+}) {
+  const locked = costs.accepted;
+  return (
+    <section className="rounded-xl border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="font-medium">{title}</h3>
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+        <FormActions
+          accepted={locked}
+          busy={busy}
+          onSave={onSave}
+          onAccept={onAccept}
+          onEdit={onEdit}
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <MoneyField
+          label="Комунальні"
+          value={costs.utilities}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, utilities: num(v) })}
+        />
+        <MoneyField
+          label="Оренда"
+          value={costs.rent}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, rent: num(v) })}
+        />
+        <MoneyField
+          label="Податки"
+          value={costs.taxes}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, taxes: num(v) })}
+        />
+        <MoneyField
+          label="Банк комісія"
+          value={costs.bankFee}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, bankFee: num(v) })}
+        />
+        <MoneyField
+          label="Інше"
+          value={costs.other}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, other: num(v) })}
+        />
       </div>
     </section>
   );

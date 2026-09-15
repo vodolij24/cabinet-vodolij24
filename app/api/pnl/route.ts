@@ -6,10 +6,12 @@ import { isPeriodKey } from "@/lib/finance-month";
 import { kyivPeriodKey, isPnlSheetKind } from "@/lib/pnl-constants";
 import {
   getPnlPage,
+  savePnlBnCosts,
   savePnlChannels,
   savePnlManual,
   savePnlSheetValues,
   savePnlStatic,
+  type PnlBnCostValues,
   type PnlChannelValues,
   type PnlManualValues,
   type PnlStaticValues,
@@ -83,6 +85,26 @@ export async function PATCH(req: Request) {
         return new NextResponse("Некоректна сума", { status: 400 });
       }
       const data = await savePnlChannels(periodKey, values, action);
+      return NextResponse.json(data);
+    }
+
+    if (section === "kmitBnCosts" || section === "pozdnyakovaBnCosts") {
+      const values: PnlBnCostValues = {
+        utilities: moneyField(body, "utilities") ?? -1,
+        rent: moneyField(body, "rent") ?? -1,
+        taxes: moneyField(body, "taxes") ?? -1,
+        bankFee: moneyField(body, "bankFee") ?? -1,
+        other: moneyField(body, "other") ?? -1,
+      };
+      if (Object.values(values).some((n) => n < 0)) {
+        return new NextResponse("Некоректна сума", { status: 400 });
+      }
+      const data = await savePnlBnCosts(
+        periodKey,
+        section === "kmitBnCosts" ? "kmit" : "pozdnyakova",
+        values,
+        action
+      );
       return NextResponse.json(data);
     }
 

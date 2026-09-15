@@ -55,12 +55,27 @@ export type PnlPage = {
     accepted: boolean;
     acceptedAt: string | null;
   };
+  kmitBnCosts: PnlBnCosts;
+  pozdnyakovaBnCosts: PnlBnCosts;
   sheets: Record<PnlSheetKind, PnlSheetSlot>;
   totals: {
     income: number;
     expenses: number;
     operatingProfit: number;
   };
+};
+
+export type PnlBnCostValues = {
+  utilities: number;
+  rent: number;
+  taxes: number;
+  bankFee: number;
+  other: number;
+};
+
+export type PnlBnCosts = PnlBnCostValues & {
+  accepted: boolean;
+  acceptedAt: string | null;
 };
 
 export type PnlChannelValues = {

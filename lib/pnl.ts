@@ -15,6 +15,7 @@ import {
   type PnlSheetKind,
 } from "@/lib/pnl-constants";
 import type {
+  PnlBnCostValues,
   PnlChannelValues,
   PnlManualValues,
   PnlPage,
@@ -23,6 +24,7 @@ import type {
 } from "@/lib/pnl-types";
 
 export type {
+  PnlBnCostValues,
   PnlChannelValues,
   PnlManualValues,
   PnlPage,
@@ -39,6 +41,18 @@ type PnlRow = {
   kmit_cashless: unknown;
   pozdnyakova_cashless: unknown;
   channels_accepted_at: Date | null;
+  kmit_bn_utilities: unknown;
+  kmit_bn_rent: unknown;
+  kmit_bn_taxes: unknown;
+  kmit_bn_bank_fee: unknown;
+  kmit_bn_other: unknown;
+  kmit_bn_costs_accepted_at: Date | null;
+  pozdnyakova_bn_utilities: unknown;
+  pozdnyakova_bn_rent: unknown;
+  pozdnyakova_bn_taxes: unknown;
+  pozdnyakova_bn_bank_fee: unknown;
+  pozdnyakova_bn_other: unknown;
+  pozdnyakova_bn_costs_accepted_at: Date | null;
   rent_total: unknown;
   salary_volodymyr: unknown;
   salary_terebenets: unknown;
@@ -157,7 +171,19 @@ export async function ensurePnlTable() {
       ADD COLUMN IF NOT EXISTS terebenets_cashless DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS kmit_cashless DOUBLE PRECISION,
       ADD COLUMN IF NOT EXISTS pozdnyakova_cashless DOUBLE PRECISION,
-      ADD COLUMN IF NOT EXISTS channels_accepted_at TIMESTAMPTZ
+      ADD COLUMN IF NOT EXISTS channels_accepted_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS kmit_bn_utilities DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_bn_rent DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_bn_taxes DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_bn_bank_fee DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_bn_other DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_bn_costs_accepted_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS pozdnyakova_bn_utilities DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS pozdnyakova_bn_rent DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS pozdnyakova_bn_taxes DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS pozdnyakova_bn_bank_fee DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS pozdnyakova_bn_other DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS pozdnyakova_bn_costs_accepted_at TIMESTAMPTZ
   `);
   tableReady = true;
 }
@@ -260,6 +286,35 @@ async function getComputed(periodKey: string) {
   };
 }
 
+function bnCostsFromRow(
+  utilities: unknown,
+  rent: unknown,
+  taxes: unknown,
+  bankFee: unknown,
+  other: unknown,
+  acceptedAt: Date | null | undefined
+) {
+  return {
+    utilities: moneyOr(utilities),
+    rent: moneyOr(rent),
+    taxes: moneyOr(taxes),
+    bankFee: moneyOr(bankFee),
+    other: moneyOr(other),
+    accepted: acceptedAt != null,
+    acceptedAt: isoOrNull(acceptedAt ?? null),
+  };
+}
+
+function bnCostsTotal(c: {
+  utilities: number;
+  rent: number;
+  taxes: number;
+  bankFee: number;
+  other: number;
+}) {
+  return round2(c.utilities + c.rent + c.taxes + c.bankFee + c.other);
+}
+
 function mapPage(
   periodKey: string,
   row: PnlRow | null,
@@ -331,6 +386,22 @@ function mapPage(
     accepted: row?.channels_accepted_at != null,
     acceptedAt: isoOrNull(row?.channels_accepted_at ?? null),
   };
+  const kmitBnCosts = bnCostsFromRow(
+    row?.kmit_bn_utilities,
+    row?.kmit_bn_rent,
+    row?.kmit_bn_taxes,
+    row?.kmit_bn_bank_fee,
+    row?.kmit_bn_other,
+    row?.kmit_bn_costs_accepted_at
+  );
+  const pozdnyakovaBnCosts = bnCostsFromRow(
+    row?.pozdnyakova_bn_utilities,
+    row?.pozdnyakova_bn_rent,
+    row?.pozdnyakova_bn_taxes,
+    row?.pozdnyakova_bn_bank_fee,
+    row?.pozdnyakova_bn_other,
+    row?.pozdnyakova_bn_costs_accepted_at
+  );
   const utilities = (sheets.utilities.amount ?? 0) + paymentCalendar.utilities;
   const taxes = (sheets.taxes.amount ?? 0) + paymentCalendar.taxes;
   const rentTotal = manual.rentTotal + paymentCalendar.rent;
@@ -356,7 +427,9 @@ function mapPage(
       staticCosts.salaryFinmanager +
       staticCosts.salaryOlena +
       utilities +
-      taxes
+      taxes +
+      bnCostsTotal(kmitBnCosts) +
+      bnCostsTotal(pozdnyakovaBnCosts)
   );
 
   return {
@@ -369,6 +442,8 @@ function mapPage(
       paymentCalendar,
     },
     channels,
+    kmitBnCosts,
+    pozdnyakovaBnCosts,
     manual,
     staticCosts,
     sheets,
@@ -476,6 +551,85 @@ export async function savePnlChannels(
               updated_at = NOW()
             WHERE period_key = ${periodKey}`;
   await acceptedSql;
+  return getPnlPage(periodKey);
+}
+
+export async function savePnlBnCosts(
+  periodKey: string,
+  who: "kmit" | "pozdnyakova",
+  values: PnlBnCostValues,
+  action: "save" | "accept" | "edit"
+) {
+  await ensurePnlRow(periodKey);
+  if (who === "kmit") {
+    const acceptedSql =
+      action === "accept"
+        ? prismadb.$executeRaw`
+            UPDATE monthly_pnl SET
+              kmit_bn_utilities = ${values.utilities},
+              kmit_bn_rent = ${values.rent},
+              kmit_bn_taxes = ${values.taxes},
+              kmit_bn_bank_fee = ${values.bankFee},
+              kmit_bn_other = ${values.other},
+              kmit_bn_costs_accepted_at = NOW(),
+              updated_at = NOW()
+            WHERE period_key = ${periodKey}`
+        : action === "edit"
+          ? prismadb.$executeRaw`
+              UPDATE monthly_pnl SET
+                kmit_bn_utilities = ${values.utilities},
+                kmit_bn_rent = ${values.rent},
+                kmit_bn_taxes = ${values.taxes},
+                kmit_bn_bank_fee = ${values.bankFee},
+                kmit_bn_other = ${values.other},
+                kmit_bn_costs_accepted_at = NULL,
+                updated_at = NOW()
+              WHERE period_key = ${periodKey}`
+          : prismadb.$executeRaw`
+              UPDATE monthly_pnl SET
+                kmit_bn_utilities = ${values.utilities},
+                kmit_bn_rent = ${values.rent},
+                kmit_bn_taxes = ${values.taxes},
+                kmit_bn_bank_fee = ${values.bankFee},
+                kmit_bn_other = ${values.other},
+                updated_at = NOW()
+              WHERE period_key = ${periodKey}`;
+    await acceptedSql;
+  } else {
+    const acceptedSql =
+      action === "accept"
+        ? prismadb.$executeRaw`
+            UPDATE monthly_pnl SET
+              pozdnyakova_bn_utilities = ${values.utilities},
+              pozdnyakova_bn_rent = ${values.rent},
+              pozdnyakova_bn_taxes = ${values.taxes},
+              pozdnyakova_bn_bank_fee = ${values.bankFee},
+              pozdnyakova_bn_other = ${values.other},
+              pozdnyakova_bn_costs_accepted_at = NOW(),
+              updated_at = NOW()
+            WHERE period_key = ${periodKey}`
+        : action === "edit"
+          ? prismadb.$executeRaw`
+              UPDATE monthly_pnl SET
+                pozdnyakova_bn_utilities = ${values.utilities},
+                pozdnyakova_bn_rent = ${values.rent},
+                pozdnyakova_bn_taxes = ${values.taxes},
+                pozdnyakova_bn_bank_fee = ${values.bankFee},
+                pozdnyakova_bn_other = ${values.other},
+                pozdnyakova_bn_costs_accepted_at = NULL,
+                updated_at = NOW()
+              WHERE period_key = ${periodKey}`
+          : prismadb.$executeRaw`
+              UPDATE monthly_pnl SET
+                pozdnyakova_bn_utilities = ${values.utilities},
+                pozdnyakova_bn_rent = ${values.rent},
+                pozdnyakova_bn_taxes = ${values.taxes},
+                pozdnyakova_bn_bank_fee = ${values.bankFee},
+                pozdnyakova_bn_other = ${values.other},
+                updated_at = NOW()
+              WHERE period_key = ${periodKey}`;
+    await acceptedSql;
+  }
   return getPnlPage(periodKey);
 }
 
