@@ -21,7 +21,11 @@ import {
   PNL_SHEET_SIGN,
   type PnlSheetKind,
 } from "@/lib/pnl-constants";
-import type { PnlBnCosts, PnlPage } from "@/lib/pnl-types";
+import type {
+  PnlBnCosts,
+  PnlPage,
+  PnlTerebenetsKasaCosts,
+} from "@/lib/pnl-types";
 import type {
   PaymentCalendarPnlTotals,
   PaymentPnlTarget,
@@ -129,6 +133,9 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
   const [pozdnyakovaBnCosts, setPozdnyakovaBnCosts] = useState(
     initial.pozdnyakovaBnCosts
   );
+  const [terebenetsKasaCosts, setTerebenetsKasaCosts] = useState(
+    initial.terebenetsKasaCosts
+  );
   const [manual, setManual] = useState(initial.manual);
   const [staticCosts, setStaticCosts] = useState(initial.staticCosts);
   const [sheetDraft, setSheetDraft] = useState(initial.sheets);
@@ -139,6 +146,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
     setChannels(initial.channels);
     setKmitBnCosts(initial.kmitBnCosts);
     setPozdnyakovaBnCosts(initial.pozdnyakovaBnCosts);
+    setTerebenetsKasaCosts(initial.terebenetsKasaCosts);
     setManual(initial.manual);
     setStaticCosts(initial.staticCosts);
     setSheetDraft(initial.sheets);
@@ -155,6 +163,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       setChannels(next.channels);
       setKmitBnCosts(next.kmitBnCosts);
       setPozdnyakovaBnCosts(next.pozdnyakovaBnCosts);
+      setTerebenetsKasaCosts(next.terebenetsKasaCosts);
       setManual(next.manual);
       setStaticCosts(next.staticCosts);
       setSheetDraft(next.sheets);
@@ -269,6 +278,16 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         amount: manual.simCards,
         hint: "вручну",
       },
+      {
+        label: "Паливо Кміть",
+        amount: manual.fuelKmit,
+        hint: "вручну",
+      },
+      {
+        label: "Поточні витрати Кміть",
+        amount: manual.currentKmit,
+        hint: "вручну",
+      },
       { label: "Амортизація авто", amount: staticCosts.amortAuto },
       { label: "Витрати фільтра", amount: staticCosts.filterCost },
       { label: "Вчасно", amount: staticCosts.vchasno },
@@ -338,6 +357,61 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         amount: kmitBnCosts.other,
         hint: "безготівка · витрата",
       },
+      {
+        label: "Каса Теребенець · комунальні",
+        amount: terebenetsKasaCosts.utilities,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · оренда",
+        amount: terebenetsKasaCosts.rent,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · податки",
+        amount: terebenetsKasaCosts.taxes,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · банк комісія",
+        amount: terebenetsKasaCosts.bankFee,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · інше",
+        amount: terebenetsKasaCosts.other,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · маркетинг",
+        amount: terebenetsKasaCosts.marketing,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · зарплата",
+        amount: terebenetsKasaCosts.salary,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · кредит",
+        amount: terebenetsKasaCosts.credit,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · паливо",
+        amount: terebenetsKasaCosts.fuel,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · поліграфія",
+        amount: terebenetsKasaCosts.printing,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Теребенець · поточні витрати",
+        amount: terebenetsKasaCosts.currentExpenses,
+        hint: "каса · витрата",
+      },
     ];
     const incomeTotal = round2(
       income.reduce((s, r) => s + (r.skipSum ? 0 : r.amount), 0)
@@ -352,9 +426,17 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       expenseTotal,
       profit: round2(incomeTotal - expenseTotal),
     };
-  }, [data.computed, manual, staticCosts, sheetDraft, kmitBnCosts, pozdnyakovaBnCosts]);
+  }, [data.computed, manual, staticCosts, sheetDraft, kmitBnCosts, pozdnyakovaBnCosts, terebenetsKasaCosts]);
 
   const profit = live.profit;
+  const actualIncome = round2(
+    channels.terebenetsCash +
+      channels.terebenetsCashless +
+      channels.kmitCashless +
+      channels.kmitCash +
+      channels.pozdnyakovaCashless
+  );
+  const recastProfit = round2(actualIncome - live.expenseTotal);
 
   return (
     <div className="space-y-6">
@@ -377,18 +459,19 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
             </SelectContent>
           </Select>
         </div>
-        <div
-          className={`rounded-xl border px-5 py-3 ${
-            profit >= 0
-              ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40"
-              : "border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/40"
-          }`}
-        >
-          <p className="text-xs text-muted-foreground">Операційний прибуток</p>
-          <p className="text-2xl font-semibold tabular-nums">{money(profit)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Доходи {money(live.incomeTotal)} · витрати {money(live.expenseTotal)}
-          </p>
+        <div className="flex flex-wrap items-stretch gap-3">
+          <ProfitBox
+            title="Операційний прибуток"
+            profit={profit}
+            income={live.incomeTotal}
+            expenses={live.expenseTotal}
+          />
+          <ProfitBox
+            title="Перерахунок від фактичних надходжень"
+            profit={recastProfit}
+            income={actualIncome}
+            expenses={live.expenseTotal}
+          />
         </div>
       </div>
 
@@ -404,7 +487,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
           <div>
             <h3 className="font-medium">Каса / безготівка</h3>
             <p className="text-xs text-muted-foreground">
-              Довідково — не входить у доходи й операційний прибуток.
+              Для перерахунку від фактичних надходжень
             </p>
           </div>
           <FormActions
@@ -536,6 +619,42 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         }
       />
 
+      <TerebenetsKasaBlock
+        costs={terebenetsKasaCosts}
+        busy={busy === "terebenetsKasaCosts"}
+        onChange={setTerebenetsKasaCosts}
+        onSave={() =>
+          void patch(
+            {
+              section: "terebenetsKasaCosts",
+              action: "save",
+              ...terebenetsKasaCosts,
+            },
+            "terebenetsKasaCosts"
+          )
+        }
+        onAccept={() =>
+          void patch(
+            {
+              section: "terebenetsKasaCosts",
+              action: "accept",
+              ...terebenetsKasaCosts,
+            },
+            "terebenetsKasaCosts"
+          )
+        }
+        onEdit={() =>
+          void patch(
+            {
+              section: "terebenetsKasaCosts",
+              action: "edit",
+              ...terebenetsKasaCosts,
+            },
+            "terebenetsKasaCosts"
+          )
+        }
+      />
+
       <section className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-medium">Ручні суми</h3>
@@ -596,6 +715,18 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
             value={manual.simCards}
             disabled={manual.accepted}
             onChange={(v) => setManual((s) => ({ ...s, simCards: num(v) }))}
+          />
+          <MoneyField
+            label="Паливо Кміть"
+            value={manual.fuelKmit}
+            disabled={manual.accepted}
+            onChange={(v) => setManual((s) => ({ ...s, fuelKmit: num(v) }))}
+          />
+          <MoneyField
+            label="Поточні витрати Кміть"
+            value={manual.currentKmit}
+            disabled={manual.accepted}
+            onChange={(v) => setManual((s) => ({ ...s, currentKmit: num(v) }))}
           />
         </div>
       </section>
@@ -849,7 +980,10 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         </div>
       </section>
 
-      <BalanceTable live={live} />
+      <BalanceTable
+        live={live}
+        recast={{ income: actualIncome, profit: recastProfit }}
+      />
     </div>
   );
 }
@@ -931,8 +1065,63 @@ function BalanceColumn({
   );
 }
 
+function ProfitBox({
+  title,
+  profit,
+  income,
+  expenses,
+  layout = "compact",
+}: {
+  title: string;
+  profit: number;
+  income: number;
+  expenses: number;
+  layout?: "compact" | "wide";
+}) {
+  const ok = profit >= 0;
+  const wrap = ok
+    ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40"
+    : "border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/40";
+  const amount = ok
+    ? "text-emerald-700 dark:text-emerald-300"
+    : "text-rose-700 dark:text-rose-300";
+
+  if (layout === "wide") {
+    return (
+      <div
+        className={`flex flex-wrap items-end justify-between gap-3 rounded-xl border px-4 py-4 ${
+          ok
+            ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
+            : "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40"
+        }`}
+      >
+        <div>
+          <p className="text-sm font-medium">{title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {money(income)} − {money(expenses)}
+          </p>
+        </div>
+        <p className={`text-2xl font-semibold tabular-nums ${amount}`}>
+          {money(profit)}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`min-w-[240px] rounded-xl border px-5 py-3 ${wrap}`}>
+      <p className="text-xs text-muted-foreground">{title}</p>
+      <p className="text-2xl font-semibold tabular-nums">{money(profit)}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Доходи {money(income)} · витрати {money(expenses)}
+      </p>
+    </div>
+  );
+}
+
 function BalanceTable({
   live,
+  recast,
 }: {
   live: {
     income: BalLine[];
@@ -941,15 +1130,15 @@ function BalanceTable({
     expenseTotal: number;
     profit: number;
   };
+  recast: { income: number; profit: number };
 }) {
-  const profitOk = live.profit >= 0;
   return (
     <section className="space-y-3">
       <div>
         <h3 className="font-medium">Баланс місяця</h3>
         <p className="text-sm text-muted-foreground">
           Ліва колонка — доходи, права — витрати. Операційний прибуток = разом
-          доходів − разом витрат.
+          доходів − разом витрат. Перерахунок бере доходи з «Каса / безготівка».
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -968,28 +1157,21 @@ function BalanceTable({
           tone="expense"
         />
       </div>
-      <div
-        className={`flex flex-wrap items-end justify-between gap-3 rounded-xl border px-4 py-4 ${
-          profitOk
-            ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
-            : "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40"
-        }`}
-      >
-        <div>
-          <p className="text-sm font-medium">Операційний прибуток (баланс)</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {money(live.incomeTotal)} − {money(live.expenseTotal)}
-          </p>
-        </div>
-        <p
-          className={`text-2xl font-semibold tabular-nums ${
-            profitOk
-              ? "text-emerald-700 dark:text-emerald-300"
-              : "text-rose-700 dark:text-rose-300"
-          }`}
-        >
-          {money(live.profit)}
-        </p>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <ProfitBox
+          layout="wide"
+          title="Операційний прибуток (баланс)"
+          profit={live.profit}
+          income={live.incomeTotal}
+          expenses={live.expenseTotal}
+        />
+        <ProfitBox
+          layout="wide"
+          title="Перерахунок від фактичних надходжень"
+          profit={recast.profit}
+          income={recast.income}
+          expenses={live.expenseTotal}
+        />
       </div>
     </section>
   );
@@ -1060,6 +1242,117 @@ function BnCostBlock({
           value={costs.other}
           disabled={locked}
           onChange={(v) => onChange({ ...costs, other: num(v) })}
+        />
+      </div>
+    </section>
+  );
+}
+
+function TerebenetsKasaBlock({
+  costs,
+  busy,
+  onChange,
+  onSave,
+  onAccept,
+  onEdit,
+}: {
+  costs: PnlTerebenetsKasaCosts;
+  busy: boolean;
+  onChange: (next: PnlTerebenetsKasaCosts) => void;
+  onSave: () => void;
+  onAccept: () => void;
+  onEdit: () => void;
+}) {
+  const locked = costs.accepted;
+  return (
+    <section className="rounded-xl border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="font-medium">Каса Теребенець</h3>
+          <p className="text-xs text-muted-foreground">
+            Витрати з каси. Входять у зелений прибуток, крім «Рух коштів».
+          </p>
+        </div>
+        <FormActions
+          accepted={locked}
+          busy={busy}
+          onSave={onSave}
+          onAccept={onAccept}
+          onEdit={onEdit}
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <MoneyField
+          label="Комунальні"
+          value={costs.utilities}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, utilities: num(v) })}
+        />
+        <MoneyField
+          label="Оренда"
+          value={costs.rent}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, rent: num(v) })}
+        />
+        <MoneyField
+          label="Податки"
+          value={costs.taxes}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, taxes: num(v) })}
+        />
+        <MoneyField
+          label="Банк комісія"
+          value={costs.bankFee}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, bankFee: num(v) })}
+        />
+        <MoneyField
+          label="Інше"
+          value={costs.other}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, other: num(v) })}
+        />
+        <MoneyField
+          label="Маркетинг"
+          value={costs.marketing}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, marketing: num(v) })}
+        />
+        <MoneyField
+          label="Зарплата"
+          value={costs.salary}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, salary: num(v) })}
+        />
+        <MoneyField
+          label="Кредит"
+          value={costs.credit}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, credit: num(v) })}
+        />
+        <MoneyField
+          label="Паливо"
+          value={costs.fuel}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, fuel: num(v) })}
+        />
+        <MoneyField
+          label="Рух коштів (довідково)"
+          value={costs.cashMovement}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, cashMovement: num(v) })}
+        />
+        <MoneyField
+          label="Поліграфія"
+          value={costs.printing}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, printing: num(v) })}
+        />
+        <MoneyField
+          label="Поточні витрати"
+          value={costs.currentExpenses}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, currentExpenses: num(v) })}
         />
       </div>
     </section>

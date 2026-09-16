@@ -41,6 +41,8 @@ export type PnlPage = {
     salaryTerebenets: number;
     marketing: number;
     simCards: number;
+    fuelKmit: number;
+    currentKmit: number;
     accepted: boolean;
     acceptedAt: string | null;
   };
@@ -57,6 +59,7 @@ export type PnlPage = {
   };
   kmitBnCosts: PnlBnCosts;
   pozdnyakovaBnCosts: PnlBnCosts;
+  terebenetsKasaCosts: PnlTerebenetsKasaCosts;
   sheets: Record<PnlSheetKind, PnlSheetSlot>;
   totals: {
     income: number;
@@ -78,6 +81,21 @@ export type PnlBnCosts = PnlBnCostValues & {
   acceptedAt: string | null;
 };
 
+export type PnlTerebenetsKasaValues = PnlBnCostValues & {
+  marketing: number;
+  salary: number;
+  credit: number;
+  fuel: number;
+  cashMovement: number;
+  printing: number;
+  currentExpenses: number;
+};
+
+export type PnlTerebenetsKasaCosts = PnlTerebenetsKasaValues & {
+  accepted: boolean;
+  acceptedAt: string | null;
+};
+
 export type PnlChannelValues = {
   terebenetsCash: number;
   terebenetsCashless: number;
@@ -93,6 +111,8 @@ export type PnlManualValues = {
   salaryTerebenets: number;
   marketing: number;
   simCards: number;
+  fuelKmit: number;
+  currentKmit: number;
 };
 
 export type PnlStaticValues = {

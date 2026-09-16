@@ -11,10 +11,12 @@ import {
   savePnlManual,
   savePnlSheetValues,
   savePnlStatic,
+  savePnlTerebenetsKasa,
   type PnlBnCostValues,
   type PnlChannelValues,
   type PnlManualValues,
   type PnlStaticValues,
+  type PnlTerebenetsKasaValues,
 } from "@/lib/pnl";
 
 export const runtime = "nodejs";
@@ -108,6 +110,28 @@ export async function PATCH(req: Request) {
       return NextResponse.json(data);
     }
 
+    if (section === "terebenetsKasaCosts") {
+      const values: PnlTerebenetsKasaValues = {
+        utilities: moneyField(body, "utilities") ?? -1,
+        rent: moneyField(body, "rent") ?? -1,
+        taxes: moneyField(body, "taxes") ?? -1,
+        bankFee: moneyField(body, "bankFee") ?? -1,
+        other: moneyField(body, "other") ?? -1,
+        marketing: moneyField(body, "marketing") ?? -1,
+        salary: moneyField(body, "salary") ?? -1,
+        credit: moneyField(body, "credit") ?? -1,
+        fuel: moneyField(body, "fuel") ?? -1,
+        cashMovement: moneyField(body, "cashMovement") ?? -1,
+        printing: moneyField(body, "printing") ?? -1,
+        currentExpenses: moneyField(body, "currentExpenses") ?? -1,
+      };
+      if (Object.values(values).some((n) => n < 0)) {
+        return new NextResponse("Некоректна сума", { status: 400 });
+      }
+      const data = await savePnlTerebenetsKasa(periodKey, values, action);
+      return NextResponse.json(data);
+    }
+
     if (section === "manual") {
       const values: PnlManualValues = {
         otherIncome: moneyField(body, "otherIncome") ?? -1,
@@ -116,6 +140,8 @@ export async function PATCH(req: Request) {
         salaryTerebenets: moneyField(body, "salaryTerebenets") ?? -1,
         marketing: moneyField(body, "marketing") ?? -1,
         simCards: moneyField(body, "simCards") ?? -1,
+        fuelKmit: moneyField(body, "fuelKmit") ?? -1,
+        currentKmit: moneyField(body, "currentKmit") ?? -1,
       };
       if (Object.values(values).some((n) => n < 0)) {
         return new NextResponse("Некоректна сума", { status: 400 });

@@ -21,6 +21,7 @@ import type {
   PnlPage,
   PnlSheetSlot,
   PnlStaticValues,
+  PnlTerebenetsKasaValues,
 } from "@/lib/pnl-types";
 
 export type {
@@ -30,6 +31,7 @@ export type {
   PnlPage,
   PnlSheetSlot,
   PnlStaticValues,
+  PnlTerebenetsKasaValues,
 } from "@/lib/pnl-types";
 
 type PnlRow = {
@@ -53,11 +55,26 @@ type PnlRow = {
   pozdnyakova_bn_bank_fee: unknown;
   pozdnyakova_bn_other: unknown;
   pozdnyakova_bn_costs_accepted_at: Date | null;
+  terebenets_kasa_utilities: unknown;
+  terebenets_kasa_rent: unknown;
+  terebenets_kasa_taxes: unknown;
+  terebenets_kasa_bank_fee: unknown;
+  terebenets_kasa_other: unknown;
+  terebenets_kasa_marketing: unknown;
+  terebenets_kasa_salary: unknown;
+  terebenets_kasa_credit: unknown;
+  terebenets_kasa_fuel: unknown;
+  terebenets_kasa_movement: unknown;
+  terebenets_kasa_printing: unknown;
+  terebenets_kasa_current: unknown;
+  terebenets_kasa_accepted_at: Date | null;
   rent_total: unknown;
   salary_volodymyr: unknown;
   salary_terebenets: unknown;
   marketing: unknown;
   sim_cards: unknown;
+  kmit_fuel: unknown;
+  kmit_current: unknown;
   manual_accepted_at: Date | null;
   amort_auto: unknown;
   filter_cost: unknown;
@@ -183,7 +200,22 @@ export async function ensurePnlTable() {
       ADD COLUMN IF NOT EXISTS pozdnyakova_bn_taxes DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS pozdnyakova_bn_bank_fee DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS pozdnyakova_bn_other DOUBLE PRECISION NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS pozdnyakova_bn_costs_accepted_at TIMESTAMPTZ
+      ADD COLUMN IF NOT EXISTS pozdnyakova_bn_costs_accepted_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_utilities DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_rent DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_taxes DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_bank_fee DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_other DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_marketing DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_salary DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_credit DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_fuel DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_movement DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_printing DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_current DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS terebenets_kasa_accepted_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS kmit_fuel DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_current DOUBLE PRECISION NOT NULL DEFAULT 0
   `);
   tableReady = true;
 }
@@ -315,6 +347,37 @@ function bnCostsTotal(c: {
   return round2(c.utilities + c.rent + c.taxes + c.bankFee + c.other);
 }
 
+function terebenetsKasaFromRow(row: PnlRow | null) {
+  return {
+    utilities: moneyOr(row?.terebenets_kasa_utilities),
+    rent: moneyOr(row?.terebenets_kasa_rent),
+    taxes: moneyOr(row?.terebenets_kasa_taxes),
+    bankFee: moneyOr(row?.terebenets_kasa_bank_fee),
+    other: moneyOr(row?.terebenets_kasa_other),
+    marketing: moneyOr(row?.terebenets_kasa_marketing),
+    salary: moneyOr(row?.terebenets_kasa_salary),
+    credit: moneyOr(row?.terebenets_kasa_credit),
+    fuel: moneyOr(row?.terebenets_kasa_fuel),
+    cashMovement: moneyOr(row?.terebenets_kasa_movement),
+    printing: moneyOr(row?.terebenets_kasa_printing),
+    currentExpenses: moneyOr(row?.terebenets_kasa_current),
+    accepted: row?.terebenets_kasa_accepted_at != null,
+    acceptedAt: isoOrNull(row?.terebenets_kasa_accepted_at ?? null),
+  };
+}
+
+function terebenetsKasaTotal(c: ReturnType<typeof terebenetsKasaFromRow>) {
+  return round2(
+    bnCostsTotal(c) +
+      c.marketing +
+      c.salary +
+      c.credit +
+      c.fuel +
+      c.printing +
+      c.currentExpenses
+  );
+}
+
 function mapPage(
   periodKey: string,
   row: PnlRow | null,
@@ -329,6 +392,8 @@ function mapPage(
     salaryTerebenets: moneyOr(row?.salary_terebenets),
     marketing: moneyOr(row?.marketing),
     simCards: moneyOr(row?.sim_cards),
+    fuelKmit: moneyOr(row?.kmit_fuel),
+    currentKmit: moneyOr(row?.kmit_current),
     accepted: row?.manual_accepted_at != null,
     acceptedAt: isoOrNull(row?.manual_accepted_at ?? null),
   };
@@ -402,6 +467,7 @@ function mapPage(
     row?.pozdnyakova_bn_other,
     row?.pozdnyakova_bn_costs_accepted_at
   );
+  const terebenetsKasaCosts = terebenetsKasaFromRow(row);
   const utilities = (sheets.utilities.amount ?? 0) + paymentCalendar.utilities;
   const taxes = (sheets.taxes.amount ?? 0) + paymentCalendar.taxes;
   const rentTotal = manual.rentTotal + paymentCalendar.rent;
@@ -419,6 +485,8 @@ function mapPage(
       manual.salaryTerebenets +
       manual.marketing +
       manual.simCards +
+      manual.fuelKmit +
+      manual.currentKmit +
       staticCosts.amortAuto +
       staticCosts.filterCost +
       staticCosts.vchasno +
@@ -429,7 +497,8 @@ function mapPage(
       utilities +
       taxes +
       bnCostsTotal(kmitBnCosts) +
-      bnCostsTotal(pozdnyakovaBnCosts)
+      bnCostsTotal(pozdnyakovaBnCosts) +
+      terebenetsKasaTotal(terebenetsKasaCosts)
   );
 
   return {
@@ -444,6 +513,7 @@ function mapPage(
     channels,
     kmitBnCosts,
     pozdnyakovaBnCosts,
+    terebenetsKasaCosts,
     manual,
     staticCosts,
     sheets,
@@ -483,6 +553,8 @@ export async function savePnlManual(
             salary_terebenets = ${values.salaryTerebenets},
             marketing = ${values.marketing},
             sim_cards = ${values.simCards},
+            kmit_fuel = ${values.fuelKmit},
+            kmit_current = ${values.currentKmit},
             manual_accepted_at = NOW(),
             updated_at = NOW()
           WHERE period_key = ${periodKey}`
@@ -495,6 +567,8 @@ export async function savePnlManual(
               salary_terebenets = ${values.salaryTerebenets},
               marketing = ${values.marketing},
               sim_cards = ${values.simCards},
+              kmit_fuel = ${values.fuelKmit},
+              kmit_current = ${values.currentKmit},
               manual_accepted_at = NULL,
               updated_at = NOW()
             WHERE period_key = ${periodKey}`
@@ -506,6 +580,8 @@ export async function savePnlManual(
               salary_terebenets = ${values.salaryTerebenets},
               marketing = ${values.marketing},
               sim_cards = ${values.simCards},
+              kmit_fuel = ${values.fuelKmit},
+              kmit_current = ${values.currentKmit},
               updated_at = NOW()
             WHERE period_key = ${periodKey}`;
   await acceptedSql;
@@ -630,6 +706,69 @@ export async function savePnlBnCosts(
               WHERE period_key = ${periodKey}`;
     await acceptedSql;
   }
+  return getPnlPage(periodKey);
+}
+
+export async function savePnlTerebenetsKasa(
+  periodKey: string,
+  values: PnlTerebenetsKasaValues,
+  action: "save" | "accept" | "edit"
+) {
+  await ensurePnlRow(periodKey);
+  const acceptedSql =
+    action === "accept"
+      ? prismadb.$executeRaw`
+          UPDATE monthly_pnl SET
+            terebenets_kasa_utilities = ${values.utilities},
+            terebenets_kasa_rent = ${values.rent},
+            terebenets_kasa_taxes = ${values.taxes},
+            terebenets_kasa_bank_fee = ${values.bankFee},
+            terebenets_kasa_other = ${values.other},
+            terebenets_kasa_marketing = ${values.marketing},
+            terebenets_kasa_salary = ${values.salary},
+            terebenets_kasa_credit = ${values.credit},
+            terebenets_kasa_fuel = ${values.fuel},
+            terebenets_kasa_movement = ${values.cashMovement},
+            terebenets_kasa_printing = ${values.printing},
+            terebenets_kasa_current = ${values.currentExpenses},
+            terebenets_kasa_accepted_at = NOW(),
+            updated_at = NOW()
+          WHERE period_key = ${periodKey}`
+      : action === "edit"
+        ? prismadb.$executeRaw`
+            UPDATE monthly_pnl SET
+              terebenets_kasa_utilities = ${values.utilities},
+              terebenets_kasa_rent = ${values.rent},
+              terebenets_kasa_taxes = ${values.taxes},
+              terebenets_kasa_bank_fee = ${values.bankFee},
+              terebenets_kasa_other = ${values.other},
+              terebenets_kasa_marketing = ${values.marketing},
+              terebenets_kasa_salary = ${values.salary},
+              terebenets_kasa_credit = ${values.credit},
+              terebenets_kasa_fuel = ${values.fuel},
+              terebenets_kasa_movement = ${values.cashMovement},
+              terebenets_kasa_printing = ${values.printing},
+              terebenets_kasa_current = ${values.currentExpenses},
+              terebenets_kasa_accepted_at = NULL,
+              updated_at = NOW()
+            WHERE period_key = ${periodKey}`
+        : prismadb.$executeRaw`
+            UPDATE monthly_pnl SET
+              terebenets_kasa_utilities = ${values.utilities},
+              terebenets_kasa_rent = ${values.rent},
+              terebenets_kasa_taxes = ${values.taxes},
+              terebenets_kasa_bank_fee = ${values.bankFee},
+              terebenets_kasa_other = ${values.other},
+              terebenets_kasa_marketing = ${values.marketing},
+              terebenets_kasa_salary = ${values.salary},
+              terebenets_kasa_credit = ${values.credit},
+              terebenets_kasa_fuel = ${values.fuel},
+              terebenets_kasa_movement = ${values.cashMovement},
+              terebenets_kasa_printing = ${values.printing},
+              terebenets_kasa_current = ${values.currentExpenses},
+              updated_at = NOW()
+            WHERE period_key = ${periodKey}`;
+  await acceptedSql;
   return getPnlPage(periodKey);
 }
 
