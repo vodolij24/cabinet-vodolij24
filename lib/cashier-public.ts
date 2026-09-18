@@ -240,15 +240,9 @@ async function loadCashierPackages(
       `${PACKAGE_SELECT}
        JOIN collection_handovers h ON h.id = c."handoverId"
        WHERE h.cashier_id = ${cashierId}
+         AND h.recount_closed_at IS NULL
          AND c.review_claimed_at IS NULL
-         AND (
-           COALESCE(c.status, 'handed') IN ('handed', 'accepted', 'review')
-           OR (
-             c.status = 'closed_auto'
-             AND c.closed_at IS NOT NULL
-             AND c.closed_at > NOW() - INTERVAL '2 days'
-           )
-         )
+         AND COALESCE(c.status, 'handed') IN ('handed', 'accepted', 'review')
        ORDER BY c.device_id NULLS LAST, c.date DESC`
     );
     return mapPackageRows(rows, techById);
