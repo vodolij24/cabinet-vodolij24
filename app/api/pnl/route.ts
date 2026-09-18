@@ -12,6 +12,7 @@ import {
   savePnlSheetValues,
   savePnlStatic,
   savePnlTerebenetsKasa,
+  savePnlTechDirectorBonus,
   type PnlBnCostValues,
   type PnlChannelValues,
   type PnlManualValues,
@@ -164,6 +165,20 @@ export async function PATCH(req: Request) {
         return new NextResponse("Некоректна сума", { status: 400 });
       }
       const data = await savePnlStatic(periodKey, values, action);
+      return NextResponse.json(data);
+    }
+
+    if (section === "techDirectorBonus") {
+      const amount = moneyField(body, "amount") ?? -1;
+      const opsDirectorSalary = moneyField(body, "opsDirectorSalary") ?? -1;
+      if (amount < 0 || opsDirectorSalary < 0) {
+        return new NextResponse("Некоректна сума", { status: 400 });
+      }
+      const data = await savePnlTechDirectorBonus(
+        periodKey,
+        amount,
+        opsDirectorSalary
+      );
       return NextResponse.json(data);
     }
 

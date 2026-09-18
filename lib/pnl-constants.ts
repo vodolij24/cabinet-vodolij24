@@ -1,4 +1,5 @@
 export const PNL_ROYALTY_RATE = 0.05;
+export const PNL_TECHDIR_BONUS_RATE = 0.07;
 
 export const PNL_STATIC_DEFAULTS = {
   amortAuto: 17000,

@@ -75,6 +75,10 @@ type PnlRow = {
   sim_cards: unknown;
   kmit_fuel: unknown;
   kmit_current: unknown;
+  tech_director_bonus: unknown;
+  tech_director_bonus_at: Date | null;
+  ops_director_salary: unknown;
+  ops_director_salary_at: Date | null;
   manual_accepted_at: Date | null;
   amort_auto: unknown;
   filter_cost: unknown;
@@ -215,7 +219,11 @@ export async function ensurePnlTable() {
       ADD COLUMN IF NOT EXISTS terebenets_kasa_current DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS terebenets_kasa_accepted_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS kmit_fuel DOUBLE PRECISION NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS kmit_current DOUBLE PRECISION NOT NULL DEFAULT 0
+      ADD COLUMN IF NOT EXISTS kmit_current DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS tech_director_bonus DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS tech_director_bonus_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS ops_director_salary DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS ops_director_salary_at TIMESTAMPTZ
   `);
   tableReady = true;
 }
@@ -468,6 +476,14 @@ function mapPage(
     row?.pozdnyakova_bn_costs_accepted_at
   );
   const terebenetsKasaCosts = terebenetsKasaFromRow(row);
+  const techDirectorBonus = {
+    amount: moneyOr(row?.tech_director_bonus),
+    updatedAt: isoOrNull(row?.tech_director_bonus_at ?? null),
+  };
+  const opsDirectorSalary = {
+    amount: moneyOr(row?.ops_director_salary),
+    updatedAt: isoOrNull(row?.ops_director_salary_at ?? null),
+  };
   const utilities = (sheets.utilities.amount ?? 0) + paymentCalendar.utilities;
   const taxes = (sheets.taxes.amount ?? 0) + paymentCalendar.taxes;
   const rentTotal = manual.rentTotal + paymentCalendar.rent;
@@ -498,7 +514,9 @@ function mapPage(
       taxes +
       bnCostsTotal(kmitBnCosts) +
       bnCostsTotal(pozdnyakovaBnCosts) +
-      terebenetsKasaTotal(terebenetsKasaCosts)
+      terebenetsKasaTotal(terebenetsKasaCosts) +
+      techDirectorBonus.amount +
+      opsDirectorSalary.amount
   );
 
   return {
@@ -514,6 +532,8 @@ function mapPage(
     kmitBnCosts,
     pozdnyakovaBnCosts,
     terebenetsKasaCosts,
+    techDirectorBonus,
+    opsDirectorSalary,
     manual,
     staticCosts,
     sheets,
@@ -585,6 +605,23 @@ export async function savePnlManual(
               updated_at = NOW()
             WHERE period_key = ${periodKey}`;
   await acceptedSql;
+  return getPnlPage(periodKey);
+}
+
+export async function savePnlTechDirectorBonus(
+  periodKey: string,
+  amount: number,
+  opsDirectorSalary: number
+) {
+  await ensurePnlRow(periodKey);
+  await prismadb.$executeRaw`
+    UPDATE monthly_pnl SET
+      tech_director_bonus = ${amount},
+      tech_director_bonus_at = NOW(),
+      ops_director_salary = ${opsDirectorSalary},
+      ops_director_salary_at = NOW(),
+      updated_at = NOW()
+    WHERE period_key = ${periodKey}`;
   return getPnlPage(periodKey);
 }
 

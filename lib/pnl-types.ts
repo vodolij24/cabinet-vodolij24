@@ -60,6 +60,14 @@ export type PnlPage = {
   kmitBnCosts: PnlBnCosts;
   pozdnyakovaBnCosts: PnlBnCosts;
   terebenetsKasaCosts: PnlTerebenetsKasaCosts;
+  techDirectorBonus: {
+    amount: number;
+    updatedAt: string | null;
+  };
+  opsDirectorSalary: {
+    amount: number;
+    updatedAt: string | null;
+  };
   sheets: Record<PnlSheetKind, PnlSheetSlot>;
   totals: {
     income: number;

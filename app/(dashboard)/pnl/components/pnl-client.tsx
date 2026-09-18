@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   PNL_SHEET_KINDS,
   PNL_SHEET_LABELS,
   PNL_SHEET_SIGN,
+  PNL_TECHDIR_BONUS_RATE,
   type PnlSheetKind,
 } from "@/lib/pnl-constants";
 import type {
@@ -168,11 +169,13 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       setStaticCosts(next.staticCosts);
       setSheetDraft(next.sheets);
       toast.success(
-        payload.action === "accept"
-          ? "Прийнято"
-          : payload.action === "edit"
-            ? "Відкрито для редагування"
-            : "Збережено"
+        payload.section === "techDirectorBonus"
+          ? "Оновлено З/П директорів"
+          : payload.action === "accept"
+            ? "Прийнято"
+            : payload.action === "edit"
+              ? "Відкрито для редагування"
+              : "Збережено"
       );
     } catch (error) {
       const message =
@@ -256,6 +259,16 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
           skipSum: true,
         })
       ),
+      {
+        label: "Премія технічний директор",
+        amount: data.techDirectorBonus.amount,
+        hint: "7% від перерахунку",
+      },
+      {
+        label: "З/П Операційний директор",
+        amount: data.opsDirectorSalary.amount,
+        hint: "З/П техдір + премія",
+      },
       {
         label: "Загальна оренда",
         amount: manual.rentTotal + pc.rent,
@@ -426,7 +439,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       expenseTotal,
       profit: round2(incomeTotal - expenseTotal),
     };
-  }, [data.computed, manual, staticCosts, sheetDraft, kmitBnCosts, pozdnyakovaBnCosts, terebenetsKasaCosts]);
+  }, [data.computed, data.techDirectorBonus, data.opsDirectorSalary, manual, staticCosts, sheetDraft, kmitBnCosts, pozdnyakovaBnCosts, terebenetsKasaCosts]);
 
   const profit = live.profit;
   const actualIncome = round2(
@@ -437,6 +450,12 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       channels.pozdnyakovaCashless
   );
   const recastProfit = round2(actualIncome - live.expenseTotal);
+  const recastBase = round2(
+    actualIncome -
+      (live.expenseTotal -
+        data.techDirectorBonus.amount -
+        data.opsDirectorSalary.amount)
+  );
 
   return (
     <div className="space-y-6">
@@ -772,6 +791,50 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
             )}
           </div>
         ) : null}
+        <div className="mt-2 flex items-start justify-between gap-3 py-1.5">
+          <div>
+            <p className="text-sm">Премія технічний директор</p>
+            <p className="text-xs text-muted-foreground">
+              {Math.round(PNL_TECHDIR_BONUS_RATE * 100)}% від перерахунку
+              фактичних надходжень
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy === "techDirectorBonus"}
+              onClick={() => {
+                const bonus = round2(
+                  Math.max(0, recastBase) * PNL_TECHDIR_BONUS_RATE
+                );
+                void patch(
+                  {
+                    section: "techDirectorBonus",
+                    action: "save",
+                    amount: bonus,
+                    opsDirectorSalary: round2(
+                      staticCosts.salaryTechdir + bonus
+                    ),
+                  },
+                  "techDirectorBonus"
+                );
+              }}
+            >
+              <RefreshCw className="mr-1 h-3.5 w-3.5" />
+              Оновити
+            </Button>
+            <p className="tabular-nums text-sm font-medium">
+              {money(data.techDirectorBonus.amount)}
+            </p>
+          </div>
+        </div>
+        <Line
+          label="З/П Операційний директор"
+          value={data.opsDirectorSalary.amount}
+          hint="З/П техдір + премія технічний директор"
+        />
       </section>
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
