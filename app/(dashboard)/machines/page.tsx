@@ -7,6 +7,7 @@ import { getMachineTodayStatsMap } from "@/lib/machine-today-stats";
 import { getMachineWaterMetricsMap } from "@/lib/soliton-water-metrics";
 import { getLastSolitonSyncAt } from "@/lib/soliton-sync";
 import { getOpenCollectionTaskCreatedMap } from "@/lib/machine-collection-tasks";
+import { ensureMachineTechnicianHistory } from "@/lib/machine-technician-history";
 import { kyivDateLabel, kyivTimeLabel, kyivTodayBounds } from "@/lib/kyiv-date";
 import { MachinesClient } from "./components/machines-client";
 
@@ -45,6 +46,7 @@ const FRANCHISE_MACHINES: Record<number, string> = {
 
 export default async function MachinesPage() {
   await requireApprovedAccess();
+  await ensureMachineTechnicianHistory();
 
   const [machines, technicianWorkers, todayStats, lastSolitonAt] = await Promise.all([
     prismadb.vending_machines.findMany({

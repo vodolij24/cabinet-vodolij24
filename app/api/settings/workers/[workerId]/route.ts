@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
 import { assertApprovedAccess } from "@/lib/cabinet-access";
+import {
+  ensureMachineTechnicianHistory,
+  recordMachineTechniciansCleared,
+} from "@/lib/machine-technician-history";
 import { isWorkerRole } from "@/lib/worker-roles";
 
 function accessErrorResponse(error: unknown) {
@@ -185,7 +189,17 @@ export async function DELETE(
     }
 
     // Знімаємо FK, щоб delete не падав мовчки / з 500
+    await ensureMachineTechnicianHistory();
+    const assignedMachines = await prismadb.vending_machines.findMany({
+      where: { technicianId: id },
+      select: { id: true },
+    });
+
     await prismadb.$transaction(async (tx) => {
+      await recordMachineTechniciansCleared(
+        tx,
+        assignedMachines.map((m) => m.id)
+      );
       await tx.vending_machines.updateMany({
         where: { technicianId: id },
         data: { technicianId: null },

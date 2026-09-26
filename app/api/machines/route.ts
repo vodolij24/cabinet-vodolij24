@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
 import { assertApprovedAccess } from "@/lib/cabinet-access";
 import { findTechnicianWorker } from "@/lib/machine-technician";
+import {
+  ensureMachineTechnicianHistory,
+  recordMachineTechnicianAssignment,
+} from "@/lib/machine-technician-history";
 
 function accessErrorResponse(error: unknown) {
   const message = error instanceof Error ? error.message : "";
@@ -109,16 +113,26 @@ export async function POST(req: Request) {
       }
     }
 
-    const machine = await prismadb.vending_machines.create({
-      data: {
-        ...(explicitId !== null ? { id: explicitId } : {}),
-        name,
-        address: null,
-        location,
-        technicianId,
-        updatedAt: new Date(),
-      },
-      include: includeTech,
+    await ensureMachineTechnicianHistory();
+    const machine = await prismadb.$transaction(async (tx) => {
+      const created = await tx.vending_machines.create({
+        data: {
+          ...(explicitId !== null ? { id: explicitId } : {}),
+          name,
+          address: null,
+          location,
+          technicianId,
+          updatedAt: new Date(),
+        },
+        include: includeTech,
+      });
+      await recordMachineTechnicianAssignment(tx, {
+        machineId: created.id,
+        technicianId: created.technicianId,
+        technicianName: created.technicianWorker?.name ?? null,
+        startedAt: created.createdAt,
+      });
+      return created;
     });
 
     return NextResponse.json(serialize(machine));

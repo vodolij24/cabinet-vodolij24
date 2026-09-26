@@ -5,7 +5,7 @@ declare global {
   var prismaStamp: string | undefined;
 }
 
-const CLIENT_STAMP = "collections-technicianId-v1";
+const CLIENT_STAMP = "machine-technician-assignment-v1";
 
 function createPrismaClient() {
   return new PrismaClient();
@@ -27,8 +27,11 @@ let prismadb = globalThis.prisma ?? createPrismaClient();
 // Після prisma generate старий singleton у globalThis може бути без нових моделей
 if (
   process.env.NODE_ENV !== "production" &&
-  !(prismadb as { technicianManualBonus?: { findMany?: unknown } })
-    .technicianManualBonus?.findMany
+  !(
+    prismadb as {
+      machineTechnicianAssignment?: { findMany?: unknown };
+    }
+  ).machineTechnicianAssignment?.findMany
 ) {
   void prismadb.$disconnect().catch(() => undefined);
   prismadb = createPrismaClient();

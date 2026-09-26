@@ -37,6 +37,9 @@ import {
 import {
   STATEMENT_PERIOD_PRESETS,
   kyivDateInputValue,
+  kyivDateLabel,
+  kyivDayKey,
+  kyivTimeLabel,
   type StatementPeriodPreset,
 } from "@/lib/kyiv-date";
 
@@ -223,6 +226,33 @@ function filterTitle(filter: TxFilter) {
   return "Усі транзакції";
 }
 
+type TechHistRow = {
+  id: number;
+  technicianId: number | null;
+  technicianName: string | null;
+  startedAt: string;
+};
+
+function technicianHistoryName(row: TechHistRow) {
+  if (row.technicianName) return row.technicianName;
+  if (row.technicianId != null) return `Технік #${row.technicianId}`;
+  return "Без техніка";
+}
+
+function technicianPeriodLabel(startIso: string, endIso: string | null) {
+  const start = new Date(startIso);
+  const end = endIso ? new Date(endIso) : null;
+  const sameDay = end ? kyivDayKey(start) === kyivDayKey(end) : false;
+  const startLabel = sameDay
+    ? `${kyivDateLabel(start)} ${kyivTimeLabel(start)}`
+    : kyivDateLabel(start);
+  if (!end) return `з ${startLabel} · зараз`;
+  const endLabel = sameDay
+    ? `${kyivDateLabel(end)} ${kyivTimeLabel(end)}`
+    : kyivDateLabel(end);
+  return `${startLabel} – ${endLabel}`;
+}
+
 type MachineTaskKind = "cash" | "tds" | "speed";
 
 function machineTaskDraft(kind: MachineTaskKind, m: MachineRow) {
@@ -385,6 +415,10 @@ export function MachinesClient({
   const [taskDue, setTaskDue] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [histOpen, setHistOpen] = useState(false);
+  const [histLoading, setHistLoading] = useState(false);
+  const [histMachine, setHistMachine] = useState<MachineRow | null>(null);
+  const [histRows, setHistRows] = useState<TechHistRow[]>([]);
 
   const onSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -423,6 +457,37 @@ export function MachinesClient({
     });
     return copy;
   }, [machines, filterTech, searchId, sortKey, sortDir]);
+
+  const openHistory = (machine: MachineRow) => {
+    setHistMachine(machine);
+    setHistRows([]);
+    setHistOpen(true);
+  };
+
+  useEffect(() => {
+    if (!histOpen || !histMachine) return;
+    let cancelled = false;
+    const machineId = histMachine.id;
+    (async () => {
+      try {
+        setHistLoading(true);
+        const { data } = await axios.get<{ assignments: TechHistRow[] }>(
+          `/api/machines/${machineId}/technicians`
+        );
+        if (cancelled) return;
+        setHistRows(data.assignments || []);
+      } catch {
+        if (cancelled) return;
+        toast.error("Не вдалося завантажити історію техніків");
+        setHistRows([]);
+      } finally {
+        if (!cancelled) setHistLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [histOpen, histMachine]);
 
   const openTaskDialog = (machine: MachineRow, kind: MachineTaskKind) => {
     const draft = machineTaskDraft(kind, machine);
@@ -974,20 +1039,24 @@ export function MachinesClient({
                     >
                       {m.location || "—"}
                     </TableCell>
-                    <TableCell
-                      className="truncate px-1.5"
-                      title={m.technicianName || m.franchise || undefined}
-                    >
-                      {m.technicianName ? (
-                        m.technicianName
-                      ) : m.franchise ? (
-                        <span className="inline-flex items-center gap-1 text-slate-400">
-                          <Building2 className="h-3.5 w-3.5 shrink-0" />
-                          {m.franchise}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
+                    <TableCell className="truncate px-1.5">
+                      <button
+                        type="button"
+                        className="block w-full truncate text-left hover:underline"
+                        title="Історія відповідальних"
+                        onClick={() => openHistory(m)}
+                      >
+                        {m.technicianName ? (
+                          m.technicianName
+                        ) : m.franchise ? (
+                          <span className="inline-flex items-center gap-1 text-slate-400">
+                            <Building2 className="h-3.5 w-3.5 shrink-0" />
+                            {m.franchise}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </button>
                     </TableCell>
                     <TableCell className="px-1 text-right tabular-nums">
                       <button
@@ -1244,6 +1313,45 @@ export function MachinesClient({
               Записів: {txRows.length}
             </p>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={histOpen} onOpenChange={setHistOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Відповідальні · №{histMachine?.id}
+            </DialogTitle>
+            <DialogDescription>
+              {histMachine?.name || histMachine?.location || "Автомат"}
+            </DialogDescription>
+          </DialogHeader>
+          {histLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Завантаження…
+            </p>
+          ) : histRows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Немає записів
+            </p>
+          ) : (
+            <ul className="max-h-[60vh] space-y-3 overflow-auto">
+              {histRows.map((row, index) => {
+                const newer = index > 0 ? histRows[index - 1] : null;
+                return (
+                  <li key={row.id} className="text-sm">
+                    <div className="font-medium">{technicianHistoryName(row)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {technicianPeriodLabel(
+                        row.startedAt,
+                        newer ? newer.startedAt : null
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </DialogContent>
       </Dialog>
 

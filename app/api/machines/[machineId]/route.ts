@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import prismadb from "@/lib/prismadb";
 import { assertApprovedAccess } from "@/lib/cabinet-access";
 import { findTechnicianWorker } from "@/lib/machine-technician";
+import {
+  ensureMachineTechnicianHistory,
+  recordMachineTechnicianAssignment,
+} from "@/lib/machine-technician-history";
 
 function accessErrorResponse(error: unknown) {
   const message = error instanceof Error ? error.message : "";
@@ -94,10 +98,32 @@ export async function PATCH(
       }
     }
 
-    const machine = await prismadb.vending_machines.update({
+    await ensureMachineTechnicianHistory();
+    const existing = await prismadb.vending_machines.findUnique({
       where: { id },
-      data,
-      include: includeTech,
+      select: { technicianId: true },
+    });
+    if (!existing) {
+      return new NextResponse("Not found", { status: 404 });
+    }
+
+    const technicianChanged =
+      "technicianId" in data && data.technicianId !== existing.technicianId;
+
+    const machine = await prismadb.$transaction(async (tx) => {
+      const updated = await tx.vending_machines.update({
+        where: { id },
+        data,
+        include: includeTech,
+      });
+      if (technicianChanged) {
+        await recordMachineTechnicianAssignment(tx, {
+          machineId: id,
+          technicianId: updated.technicianId,
+          technicianName: updated.technicianWorker?.name ?? null,
+        });
+      }
+      return updated;
     });
 
     return NextResponse.json(serialize(machine));

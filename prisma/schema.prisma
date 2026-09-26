@@ -452,8 +452,23 @@ model vending_machines {
   solitonSensors        Json?
   createdAt             DateTime                                    @default(now())
   updatedAt             DateTime
+  technicianAssignments MachineTechnicianAssignment[]
 
   @@index([technicianId])
+}
+
+/// Хто відповідальний за автомат і з якого моменту. Кінець періоду — startedAt наступного рядка.
+model MachineTechnicianAssignment {
+  id             Int              @id @default(autoincrement())
+  machineId      Int              @map("machine_id")
+  machine        vending_machines @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  technicianId   Int?             @map("technician_id")
+  /// Знімок імені на момент зміни
+  technicianName String?          @map("technician_name") @db.VarChar(255)
+  startedAt      DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+
+  @@index([machineId, startedAt])
+  @@map("machine_technician_assignments")
 }
 
 model water_quality_tests {
