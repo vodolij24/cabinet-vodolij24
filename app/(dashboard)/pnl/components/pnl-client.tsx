@@ -61,6 +61,11 @@ function Line({
   );
 }
 
+function moneyInputText(value: number) {
+  if (!Number.isFinite(value) || value === 0) return "";
+  return String(value);
+}
+
 function MoneyField({
   label,
   value,
@@ -72,16 +77,31 @@ function MoneyField({
   disabled: boolean;
   onChange: (v: string) => void;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft !== null ? draft : moneyInputText(value);
+
   return (
     <div className="space-y-1">
       <label className="text-sm text-muted-foreground">{label}</label>
       <Input
-        type="number"
-        min={0}
-        step="0.01"
-        value={value}
+        type="text"
+        inputMode="decimal"
+        value={shown}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
+        placeholder="0"
+        onFocus={() => {
+          setDraft(moneyInputText(value));
+        }}
+        onChange={(e) => {
+          const next = e.target.value.replace(",", ".").replace(/\s/g, "");
+          if (next !== "" && !/^\d*\.?\d*$/.test(next)) return;
+          setDraft(next);
+          onChange(next === "" ? "0" : next);
+        }}
+        onBlur={() => {
+          onChange(draft === null || draft.trim() === "" ? "0" : draft);
+          setDraft(null);
+        }}
       />
     </div>
   );
