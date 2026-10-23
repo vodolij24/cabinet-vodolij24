@@ -11,10 +11,12 @@ import {
   savePnlManual,
   savePnlSheetValues,
   savePnlStatic,
+  savePnlKmitKasa,
   savePnlTerebenetsKasa,
   savePnlTechDirectorBonus,
   type PnlBnCostValues,
   type PnlChannelValues,
+  type PnlKmitKasaValues,
   type PnlManualValues,
   type PnlStaticValues,
   type PnlTerebenetsKasaValues,
@@ -130,6 +132,23 @@ export async function PATCH(req: Request) {
         return new NextResponse("Некоректна сума", { status: 400 });
       }
       const data = await savePnlTerebenetsKasa(periodKey, values, action);
+      return NextResponse.json(data);
+    }
+
+    if (section === "kmitKasaCosts") {
+      const values: PnlKmitKasaValues = {
+        collection: moneyField(body, "collection") ?? -1,
+        salary: moneyField(body, "salary") ?? -1,
+        utilities: moneyField(body, "utilities") ?? -1,
+        fuel: moneyField(body, "fuel") ?? -1,
+        collectionServices: moneyField(body, "collectionServices") ?? -1,
+        currentExpenses: moneyField(body, "currentExpenses") ?? -1,
+        cashMovement: moneyField(body, "cashMovement") ?? -1,
+      };
+      if (Object.values(values).some((n) => n < 0)) {
+        return new NextResponse("Некоректна сума", { status: 400 });
+      }
+      const data = await savePnlKmitKasa(periodKey, values, action);
       return NextResponse.json(data);
     }
 

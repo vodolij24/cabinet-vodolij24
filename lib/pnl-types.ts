@@ -60,6 +60,7 @@ export type PnlPage = {
   kmitBnCosts: PnlBnCosts;
   pozdnyakovaBnCosts: PnlBnCosts;
   terebenetsKasaCosts: PnlTerebenetsKasaCosts;
+  kmitKasaCosts: PnlKmitKasaCosts;
   techDirectorBonus: {
     amount: number;
     updatedAt: string | null;
@@ -100,6 +101,21 @@ export type PnlTerebenetsKasaValues = PnlBnCostValues & {
 };
 
 export type PnlTerebenetsKasaCosts = PnlTerebenetsKasaValues & {
+  accepted: boolean;
+  acceptedAt: string | null;
+};
+
+export type PnlKmitKasaValues = {
+  collection: number;
+  salary: number;
+  utilities: number;
+  fuel: number;
+  collectionServices: number;
+  currentExpenses: number;
+  cashMovement: number;
+};
+
+export type PnlKmitKasaCosts = PnlKmitKasaValues & {
   accepted: boolean;
   acceptedAt: string | null;
 };

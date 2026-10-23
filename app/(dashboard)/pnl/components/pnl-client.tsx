@@ -24,6 +24,7 @@ import {
 } from "@/lib/pnl-constants";
 import type {
   PnlBnCosts,
+  PnlKmitKasaCosts,
   PnlPage,
   PnlTerebenetsKasaCosts,
 } from "@/lib/pnl-types";
@@ -157,6 +158,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
   const [terebenetsKasaCosts, setTerebenetsKasaCosts] = useState(
     initial.terebenetsKasaCosts
   );
+  const [kmitKasaCosts, setKmitKasaCosts] = useState(initial.kmitKasaCosts);
   const [manual, setManual] = useState(initial.manual);
   const [staticCosts, setStaticCosts] = useState(initial.staticCosts);
   const [sheetDraft, setSheetDraft] = useState(initial.sheets);
@@ -168,6 +170,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
     setKmitBnCosts(initial.kmitBnCosts);
     setPozdnyakovaBnCosts(initial.pozdnyakovaBnCosts);
     setTerebenetsKasaCosts(initial.terebenetsKasaCosts);
+    setKmitKasaCosts(initial.kmitKasaCosts);
     setManual(initial.manual);
     setStaticCosts(initial.staticCosts);
     setSheetDraft(initial.sheets);
@@ -185,6 +188,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       setKmitBnCosts(next.kmitBnCosts);
       setPozdnyakovaBnCosts(next.pozdnyakovaBnCosts);
       setTerebenetsKasaCosts(next.terebenetsKasaCosts);
+      setKmitKasaCosts(next.kmitKasaCosts);
       setManual(next.manual);
       setStaticCosts(next.staticCosts);
       setSheetDraft(next.sheets);
@@ -445,6 +449,36 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         amount: terebenetsKasaCosts.currentExpenses,
         hint: "каса · витрата",
       },
+      {
+        label: "Каса Кміть готівка · зборка",
+        amount: kmitKasaCosts.collection,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Кміть готівка · З/П",
+        amount: kmitKasaCosts.salary,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Кміть готівка · комунальні",
+        amount: kmitKasaCosts.utilities,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Кміть готівка · паливо",
+        amount: kmitKasaCosts.fuel,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Кміть готівка · послуги зборки",
+        amount: kmitKasaCosts.collectionServices,
+        hint: "каса · витрата",
+      },
+      {
+        label: "Каса Кміть готівка · поточні",
+        amount: kmitKasaCosts.currentExpenses,
+        hint: "каса · витрата",
+      },
     ];
     const incomeTotal = round2(
       income.reduce((s, r) => s + (r.skipSum ? 0 : r.amount), 0)
@@ -459,7 +493,7 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
       expenseTotal,
       profit: round2(incomeTotal - expenseTotal),
     };
-  }, [data.computed, data.techDirectorBonus, data.opsDirectorSalary, manual, staticCosts, sheetDraft, kmitBnCosts, pozdnyakovaBnCosts, terebenetsKasaCosts]);
+  }, [data.computed, data.techDirectorBonus, data.opsDirectorSalary, manual, staticCosts, sheetDraft, kmitBnCosts, pozdnyakovaBnCosts, terebenetsKasaCosts, kmitKasaCosts]);
 
   const profit = live.profit;
   const actualIncome = round2(
@@ -690,6 +724,42 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
               ...terebenetsKasaCosts,
             },
             "terebenetsKasaCosts"
+          )
+        }
+      />
+
+      <KmitKasaBlock
+        costs={kmitKasaCosts}
+        busy={busy === "kmitKasaCosts"}
+        onChange={setKmitKasaCosts}
+        onSave={() =>
+          void patch(
+            {
+              section: "kmitKasaCosts",
+              action: "save",
+              ...kmitKasaCosts,
+            },
+            "kmitKasaCosts"
+          )
+        }
+        onAccept={() =>
+          void patch(
+            {
+              section: "kmitKasaCosts",
+              action: "accept",
+              ...kmitKasaCosts,
+            },
+            "kmitKasaCosts"
+          )
+        }
+        onEdit={() =>
+          void patch(
+            {
+              section: "kmitKasaCosts",
+              action: "edit",
+              ...kmitKasaCosts,
+            },
+            "kmitKasaCosts"
           )
         }
       />
@@ -1436,6 +1506,87 @@ function TerebenetsKasaBlock({
           value={costs.currentExpenses}
           disabled={locked}
           onChange={(v) => onChange({ ...costs, currentExpenses: num(v) })}
+        />
+      </div>
+    </section>
+  );
+}
+
+function KmitKasaBlock({
+  costs,
+  busy,
+  onChange,
+  onSave,
+  onAccept,
+  onEdit,
+}: {
+  costs: PnlKmitKasaCosts;
+  busy: boolean;
+  onChange: (next: PnlKmitKasaCosts) => void;
+  onSave: () => void;
+  onAccept: () => void;
+  onEdit: () => void;
+}) {
+  const locked = costs.accepted;
+  return (
+    <section className="rounded-xl border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="font-medium">Каса Кміть готівка</h3>
+          <p className="text-xs text-muted-foreground">
+            Витрати з каси. Входять у зелений прибуток, крім «Рух коштів».
+          </p>
+        </div>
+        <FormActions
+          accepted={locked}
+          busy={busy}
+          onSave={onSave}
+          onAccept={onAccept}
+          onEdit={onEdit}
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <MoneyField
+          label="Зборка"
+          value={costs.collection}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, collection: num(v) })}
+        />
+        <MoneyField
+          label="З/П"
+          value={costs.salary}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, salary: num(v) })}
+        />
+        <MoneyField
+          label="Комунальні"
+          value={costs.utilities}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, utilities: num(v) })}
+        />
+        <MoneyField
+          label="Паливо"
+          value={costs.fuel}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, fuel: num(v) })}
+        />
+        <MoneyField
+          label="Послуги зборки"
+          value={costs.collectionServices}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, collectionServices: num(v) })}
+        />
+        <MoneyField
+          label="Поточні"
+          value={costs.currentExpenses}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, currentExpenses: num(v) })}
+        />
+        <MoneyField
+          label="Рух коштів (довідково)"
+          value={costs.cashMovement}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, cashMovement: num(v) })}
         />
       </div>
     </section>

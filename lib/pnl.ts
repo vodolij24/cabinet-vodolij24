@@ -21,12 +21,14 @@ import type {
   PnlPage,
   PnlSheetSlot,
   PnlStaticValues,
+  PnlKmitKasaValues,
   PnlTerebenetsKasaValues,
 } from "@/lib/pnl-types";
 
 export type {
   PnlBnCostValues,
   PnlChannelValues,
+  PnlKmitKasaValues,
   PnlManualValues,
   PnlPage,
   PnlSheetSlot,
@@ -68,6 +70,14 @@ type PnlRow = {
   terebenets_kasa_printing: unknown;
   terebenets_kasa_current: unknown;
   terebenets_kasa_accepted_at: Date | null;
+  kmit_kasa_collection: unknown;
+  kmit_kasa_salary: unknown;
+  kmit_kasa_utilities: unknown;
+  kmit_kasa_fuel: unknown;
+  kmit_kasa_collection_services: unknown;
+  kmit_kasa_current: unknown;
+  kmit_kasa_movement: unknown;
+  kmit_kasa_accepted_at: Date | null;
   rent_total: unknown;
   salary_volodymyr: unknown;
   salary_terebenets: unknown;
@@ -223,7 +233,15 @@ export async function ensurePnlTable() {
       ADD COLUMN IF NOT EXISTS tech_director_bonus DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS tech_director_bonus_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS ops_director_salary DOUBLE PRECISION NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS ops_director_salary_at TIMESTAMPTZ
+      ADD COLUMN IF NOT EXISTS ops_director_salary_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_collection DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_salary DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_utilities DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_fuel DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_collection_services DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_current DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_movement DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_accepted_at TIMESTAMPTZ
   `);
   tableReady = true;
 }
@@ -386,6 +404,31 @@ function terebenetsKasaTotal(c: ReturnType<typeof terebenetsKasaFromRow>) {
   );
 }
 
+function kmitKasaFromRow(row: PnlRow | null) {
+  return {
+    collection: moneyOr(row?.kmit_kasa_collection),
+    salary: moneyOr(row?.kmit_kasa_salary),
+    utilities: moneyOr(row?.kmit_kasa_utilities),
+    fuel: moneyOr(row?.kmit_kasa_fuel),
+    collectionServices: moneyOr(row?.kmit_kasa_collection_services),
+    currentExpenses: moneyOr(row?.kmit_kasa_current),
+    cashMovement: moneyOr(row?.kmit_kasa_movement),
+    accepted: row?.kmit_kasa_accepted_at != null,
+    acceptedAt: isoOrNull(row?.kmit_kasa_accepted_at ?? null),
+  };
+}
+
+function kmitKasaTotal(c: ReturnType<typeof kmitKasaFromRow>) {
+  return round2(
+    c.collection +
+      c.salary +
+      c.utilities +
+      c.fuel +
+      c.collectionServices +
+      c.currentExpenses
+  );
+}
+
 function mapPage(
   periodKey: string,
   row: PnlRow | null,
@@ -476,6 +519,7 @@ function mapPage(
     row?.pozdnyakova_bn_costs_accepted_at
   );
   const terebenetsKasaCosts = terebenetsKasaFromRow(row);
+  const kmitKasaCosts = kmitKasaFromRow(row);
   const techDirectorBonus = {
     amount: moneyOr(row?.tech_director_bonus),
     updatedAt: isoOrNull(row?.tech_director_bonus_at ?? null),
@@ -515,6 +559,7 @@ function mapPage(
       bnCostsTotal(kmitBnCosts) +
       bnCostsTotal(pozdnyakovaBnCosts) +
       terebenetsKasaTotal(terebenetsKasaCosts) +
+      kmitKasaTotal(kmitKasaCosts) +
       techDirectorBonus.amount +
       opsDirectorSalary.amount
   );
@@ -532,6 +577,7 @@ function mapPage(
     kmitBnCosts,
     pozdnyakovaBnCosts,
     terebenetsKasaCosts,
+    kmitKasaCosts,
     techDirectorBonus,
     opsDirectorSalary,
     manual,
@@ -803,6 +849,54 @@ export async function savePnlTerebenetsKasa(
               terebenets_kasa_movement = ${values.cashMovement},
               terebenets_kasa_printing = ${values.printing},
               terebenets_kasa_current = ${values.currentExpenses},
+              updated_at = NOW()
+            WHERE period_key = ${periodKey}`;
+  await acceptedSql;
+  return getPnlPage(periodKey);
+}
+
+export async function savePnlKmitKasa(
+  periodKey: string,
+  values: PnlKmitKasaValues,
+  action: "save" | "accept" | "edit"
+) {
+  await ensurePnlRow(periodKey);
+  const acceptedSql =
+    action === "accept"
+      ? prismadb.$executeRaw`
+          UPDATE monthly_pnl SET
+            kmit_kasa_collection = ${values.collection},
+            kmit_kasa_salary = ${values.salary},
+            kmit_kasa_utilities = ${values.utilities},
+            kmit_kasa_fuel = ${values.fuel},
+            kmit_kasa_collection_services = ${values.collectionServices},
+            kmit_kasa_current = ${values.currentExpenses},
+            kmit_kasa_movement = ${values.cashMovement},
+            kmit_kasa_accepted_at = NOW(),
+            updated_at = NOW()
+          WHERE period_key = ${periodKey}`
+      : action === "edit"
+        ? prismadb.$executeRaw`
+            UPDATE monthly_pnl SET
+              kmit_kasa_collection = ${values.collection},
+              kmit_kasa_salary = ${values.salary},
+              kmit_kasa_utilities = ${values.utilities},
+              kmit_kasa_fuel = ${values.fuel},
+              kmit_kasa_collection_services = ${values.collectionServices},
+              kmit_kasa_current = ${values.currentExpenses},
+              kmit_kasa_movement = ${values.cashMovement},
+              kmit_kasa_accepted_at = NULL,
+              updated_at = NOW()
+            WHERE period_key = ${periodKey}`
+        : prismadb.$executeRaw`
+            UPDATE monthly_pnl SET
+              kmit_kasa_collection = ${values.collection},
+              kmit_kasa_salary = ${values.salary},
+              kmit_kasa_utilities = ${values.utilities},
+              kmit_kasa_fuel = ${values.fuel},
+              kmit_kasa_collection_services = ${values.collectionServices},
+              kmit_kasa_current = ${values.currentExpenses},
+              kmit_kasa_movement = ${values.cashMovement},
               updated_at = NOW()
             WHERE period_key = ${periodKey}`;
   await acceptedSql;
