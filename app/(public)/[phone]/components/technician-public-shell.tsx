@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -11,6 +11,33 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CollectionCommentsThread } from "@/components/collection-comments";
 import type { TechnicianPublicCollections } from "@/lib/technician-public";
+import type { CollectionSyncState } from "@/lib/soliton-collections";
+
+type SyncView = {
+  state: CollectionSyncState | null;
+  syncing: boolean;
+  canSync: boolean;
+  onSyncNow: () => void;
+};
+
+function syncStatusText(sync: SyncView) {
+  const state = sync.state;
+  if (sync.syncing || state?.status === "running") {
+    if (state && state.devicesTotal > 0) {
+      return `Перевіряємо Soliton… ${state.devicesDone} з ${state.devicesTotal}`;
+    }
+    return "Перевіряємо Soliton…";
+  }
+  if (!state || state.status === "never") {
+    return "Ще не оновлювалось із Soliton";
+  }
+  if (state.status === "error") {
+    return state.finishedLabel
+      ? `Не вдалося оновити · останнє оновлення ${state.finishedLabel}`
+      : "Не вдалося оновити із Soliton";
+  }
+  return state.finishedLabel ? `Оновлено ${state.finishedLabel}` : "Оновлено";
+}
 
 function packagesWord(n: number) {
   const mod10 = n % 10;
@@ -70,8 +97,6 @@ export function TechnicianPublicShell({
   );
   const [collections, setCollections] =
     useState<TechnicianPublicCollections>(initialCollections);
-  const [refreshing, setRefreshing] = useState(false);
-
   const setView = (next: "home" | "collections") => {
     setTab(next);
     const url =
@@ -79,27 +104,81 @@ export function TechnicianPublicShell({
     window.history.replaceState(null, "", url);
   };
 
-  const refresh = useCallback(async (silent = false) => {
+  const refresh = useCallback(async () => {
     try {
-      if (!silent) setRefreshing(true);
       const { data } = await axios.get<{
         collections: TechnicianPublicCollections;
       }>(`/api/public/technician/${phone}/collections`);
       if (data?.collections) setCollections(data.collections);
     } catch {
-      if (!silent) toast.error("Не вдалося оновити інкасації");
-    } finally {
-      if (!silent) setRefreshing(false);
+      // наступне опитування спробує знову
     }
   }, [phone]);
 
   useEffect(() => {
     if (tab !== "collections") return;
     const id = window.setInterval(() => {
-      void refresh(true);
+      void refresh();
     }, 30_000);
     return () => window.clearInterval(id);
   }, [tab, refresh]);
+
+  const [syncState, setSyncState] = useState<CollectionSyncState | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const syncingRef = useRef(false);
+
+  const runSync = useCallback(async () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    const progress = window.setInterval(async () => {
+      try {
+        const { data } = await axios.get<{ state: CollectionSyncState }>(
+          `/api/public/technician/${phone}/collections/sync`
+        );
+        if (data?.state) setSyncState(data.state);
+      } catch {
+        // прогрес необовʼязковий
+      }
+    }, 2_000);
+    try {
+      const { data } = await axios.post<{
+        started: boolean;
+        state: CollectionSyncState;
+      }>(`/api/public/technician/${phone}/collections/sync`);
+      if (data?.state) setSyncState(data.state);
+      if (data?.started) await refresh();
+    } catch {
+      toast.error("Не вдалося оновити інкасації із Soliton");
+    } finally {
+      window.clearInterval(progress);
+      syncingRef.current = false;
+      setSyncing(false);
+      setNowMs(Date.now());
+    }
+  }, [phone, refresh]);
+
+  useEffect(() => {
+    if (tab !== "collections") return;
+    void runSync();
+  }, [tab, runSync]);
+
+  useEffect(() => {
+    if (tab !== "collections") return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, [tab]);
+
+  const nextAllowedMs = syncState?.nextAllowedAt
+    ? new Date(syncState.nextAllowedAt).getTime()
+    : 0;
+  const sync: SyncView = {
+    state: syncState,
+    syncing,
+    canSync: !syncing && nowMs >= nextAllowedMs,
+    onSyncNow: () => void runSync(),
+  };
 
   const groups = useMemo(
     () => groupByMachine(collections.packages),
@@ -151,9 +230,8 @@ export function TechnicianPublicShell({
           phone={phone}
           collections={collections}
           groups={groups}
-          refreshing={refreshing}
-          onRefresh={() => void refresh(false)}
-          onChanged={() => void refresh(true)}
+          sync={sync}
+          onChanged={() => void refresh()}
         />
       ) : (
         children
@@ -166,15 +244,13 @@ function CollectionsView({
   phone,
   collections,
   groups,
-  refreshing,
-  onRefresh,
+  sync,
   onChanged,
 }: {
   phone: string;
   collections: TechnicianPublicCollections;
   groups: ReturnType<typeof groupByMachine>;
-  refreshing: boolean;
-  onRefresh: () => void;
+  sync: SyncView;
   onChanged: () => void;
 }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -245,16 +321,19 @@ function CollectionsView({
           <Button
             size="sm"
             variant="outline"
-            disabled={refreshing}
-            onClick={onRefresh}
+            disabled={!sync.canSync}
+            onClick={sync.onSyncNow}
             className="shrink-0"
           >
             <RefreshCw
-              className={`mr-1.5 h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
+              className={`mr-1.5 h-3.5 w-3.5 ${sync.syncing ? "animate-spin" : ""}`}
             />
-            Оновити
+            Оновити зараз
           </Button>
         </div>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          {syncStatusText(sync)}
+        </p>
         <p className="mt-1 text-3xl font-bold tabular-nums text-sky-800 dark:text-sky-300">
           {collections.packageCount}
         </p>
