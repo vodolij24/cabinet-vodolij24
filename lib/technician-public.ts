@@ -11,7 +11,11 @@ import {
 import { parsePhotoUrls } from "@/lib/photo-urls";
 import { listTickets } from "@/lib/tickets";
 import type { TicketThread } from "@/lib/ticket-types";
-import { cashierMachineLabel, machineLabel } from "@/lib/collection-fields";
+import {
+  cashierMachineLabel,
+  compareMachinesByAddress,
+  machineStreetLabel,
+} from "@/lib/collection-fields";
 import { kyivDateLabel, kyivTimeLabel } from "@/lib/kyiv-date";
 import { getMachineCashboxMap } from "@/lib/machine-cashbox";
 import { getMachineWaterMetricsMap } from "@/lib/soliton-water-metrics";
@@ -243,14 +247,17 @@ export async function getTechnicianUnhandedCollections(
       machineCount: uniqueMachineCount(packages),
       history: history.map(mapTechPackage),
       cashiers,
-      machines: machineRows.map((m) => ({
-        id: m.id,
-        label: machineLabel({
+      machines: machineRows
+        .slice()
+        .sort(compareMachinesByAddress)
+        .map((m) => ({
           id: m.id,
-          name: m.name,
-          location: m.location || m.address,
-        }),
-      })),
+          label: machineStreetLabel({
+            id: m.id,
+            name: m.name,
+            location: m.location || m.address,
+          }),
+        })),
     };
   } catch (error) {
     console.error("[TECH_UNHANDED_COLLECTIONS]", error);
@@ -321,26 +328,29 @@ export async function getTechnicianPublicPage(
     getTechnicianUnhandedCollections(technician.id, deviceIds),
   ]);
 
-  const rows: TechnicianPublicMachine[] = machines.map((m) => {
-    const cashbox = cashboxMap.get(m.id);
-    const water = waterMetrics.get(m.id);
-    return {
-      id: m.id,
-      name: m.name,
-      location: m.location,
-      lat: m.lat,
-      lon: m.lon,
-      status: m.status,
-      waterLitersMonth: waterByDevice.get(m.id) || 0,
-      cashInMachine: cashbox?.cashInMachine ?? 0,
-      lastCollectionDate: cashbox?.lastCollectionDate ?? null,
-      lastCollectionSum: cashbox?.lastCollectionSum ?? null,
-      filterSpeed: water?.filterSpeed ?? null,
-      waterTds: water?.tds ?? null,
-      waterMetricsDate: water?.metricsDate ?? null,
-      sensors: sensorsMap.get(m.id) ?? [],
-    };
-  });
+  const rows: TechnicianPublicMachine[] = machines
+    .slice()
+    .sort(compareMachinesByAddress)
+    .map((m) => {
+      const cashbox = cashboxMap.get(m.id);
+      const water = waterMetrics.get(m.id);
+      return {
+        id: m.id,
+        name: m.name,
+        location: m.location,
+        lat: m.lat,
+        lon: m.lon,
+        status: m.status,
+        waterLitersMonth: waterByDevice.get(m.id) || 0,
+        cashInMachine: cashbox?.cashInMachine ?? 0,
+        lastCollectionDate: cashbox?.lastCollectionDate ?? null,
+        lastCollectionSum: cashbox?.lastCollectionSum ?? null,
+        filterSpeed: water?.filterSpeed ?? null,
+        waterTds: water?.tds ?? null,
+        waterMetricsDate: water?.metricsDate ?? null,
+        sensors: sensorsMap.get(m.id) ?? [],
+      };
+    });
 
   const totalWaterLitersMonth = rows.reduce(
     (sum, m) => sum + m.waterLitersMonth,

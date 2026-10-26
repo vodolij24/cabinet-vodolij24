@@ -46,6 +46,69 @@ export function machineLabel(m: {
   return parts.join(" · ");
 }
 
+/** Підпис у меню вибору: вулиця і номер будинку, потім № автомата. */
+export function machineStreetLabel(m: {
+  id: number;
+  name?: string | null;
+  location?: string | null;
+}) {
+  const place = m.location?.trim();
+  const name = m.name?.trim();
+  const id = `№${m.id}`;
+  if (place) return [place, name, id].filter(Boolean).join(" · ");
+  return [name, id].filter(Boolean).join(" · ");
+}
+
+function stripMachinePrice(location: string) {
+  return location
+    .replace(/\s*Близенько\s*[\d.,]+\s*грн\.?\s*[Кк]?\s*$/i, "")
+    .replace(/\s+[\d]+[.,][\d]+\s*грн\.?\s*$/i, "")
+    .replace(/,\s*$/, "")
+    .trim();
+}
+
+/** Вулиця, потім номер будинку. Решта адреси в сортування не входить. */
+export function machineAddressKey(location: string | null | undefined) {
+  const cleaned = stripMachinePrice((location || "").replace(/\s+/g, " ").trim());
+  const empty = {
+    street: cleaned,
+    number: Number.MAX_SAFE_INTEGER,
+    fraction: 0,
+    suffix: "",
+  };
+  if (!cleaned) return empty;
+
+  const house = "(\\d+)(?:/(\\d+))?([а-яіїєґa-z])?(?=\\s|$|,)";
+  const comma = new RegExp(`^(.*?),\\s*${house}`, "i").exec(cleaned);
+  const inline = comma
+    ? null
+    : new RegExp(`^(.*?)\\s+${house}\\s*$`, "i").exec(cleaned);
+  const match = comma || inline;
+  if (!match || !match[1].trim()) return empty;
+
+  return {
+    street: match[1].trim(),
+    number: Number(match[2]),
+    fraction: match[3] ? Number(match[3]) : 0,
+    suffix: (match[4] || "").toLowerCase(),
+  };
+}
+
+export function compareMachinesByAddress(
+  a: { id: number; location?: string | null; address?: string | null },
+  b: { id: number; location?: string | null; address?: string | null }
+) {
+  const ka = machineAddressKey(a.location || a.address);
+  const kb = machineAddressKey(b.location || b.address);
+  const street = ka.street.localeCompare(kb.street, "uk", { sensitivity: "base" });
+  if (street !== 0) return street;
+  if (ka.number !== kb.number) return ka.number - kb.number;
+  if (ka.fraction !== kb.fraction) return ka.fraction - kb.fraction;
+  const suffix = ka.suffix.localeCompare(kb.suffix, "uk");
+  if (suffix !== 0) return suffix;
+  return a.id - b.id;
+}
+
 /** Підпис для касира: номер апарату + адреса (без назви з Soliton-знімка). */
 export function cashierMachineLabel(
   deviceId: number | null | undefined,
