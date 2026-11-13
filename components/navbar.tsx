@@ -13,14 +13,13 @@ const Navbar = async () => {
   }
 
   return (
-    <div className="border-b">
-      <div className="flex h-16 items-center px-4">
-        <MainNav className="mx-6" />
-        <div className="ml-auto flex items-center space-x-4">
+    <div className="border-b bg-background">
+      <MainNav>
+        <div className="ml-auto flex shrink-0 items-center space-x-4">
           <ThemeToggle />
           <UserButton afterSignOutUrl="/" />
         </div>
-      </div>
+      </MainNav>
     </div>
   );
 };
