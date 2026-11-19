@@ -36,6 +36,7 @@ const entries: NavEntry[] = [
       { href: "/transactions", label: "Транзакції" },
       { href: "/payments", label: "Платіжний календар" },
       { href: "/pnl", label: "Фін. звіт" },
+      { href: "/reports", label: "Звіти" },
     ],
   },
   {
