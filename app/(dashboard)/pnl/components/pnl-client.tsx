@@ -309,6 +309,16 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         amount: manual.salaryTerebenets,
         hint: "вручну",
       },
+      {
+        label: "З/П Дудар",
+        amount: manual.salaryDudar,
+        hint: "вручну",
+      },
+      {
+        label: "З/П Олена",
+        amount: manual.salaryOlenaManual,
+        hint: "вручну",
+      },
       { label: "Маркетинг", amount: manual.marketing, hint: "вручну" },
       {
         label: "Сімкарти автомати + підтримка",
@@ -811,6 +821,22 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
             disabled={manual.accepted}
             onChange={(v) =>
               setManual((s) => ({ ...s, salaryTerebenets: num(v) }))
+            }
+          />
+          <MoneyField
+            label="З/П Дудар"
+            value={manual.salaryDudar}
+            disabled={manual.accepted}
+            onChange={(v) =>
+              setManual((s) => ({ ...s, salaryDudar: num(v) }))
+            }
+          />
+          <MoneyField
+            label="З/П Олена"
+            value={manual.salaryOlenaManual}
+            disabled={manual.accepted}
+            onChange={(v) =>
+              setManual((s) => ({ ...s, salaryOlenaManual: num(v) }))
             }
           />
           <MoneyField

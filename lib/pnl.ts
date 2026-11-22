@@ -81,6 +81,8 @@ type PnlRow = {
   rent_total: unknown;
   salary_volodymyr: unknown;
   salary_terebenets: unknown;
+  salary_dudar: unknown;
+  salary_olena_manual: unknown;
   marketing: unknown;
   sim_cards: unknown;
   kmit_fuel: unknown;
@@ -161,6 +163,8 @@ export async function ensurePnlTable() {
       rent_total DOUBLE PRECISION NOT NULL DEFAULT 0,
       salary_volodymyr DOUBLE PRECISION NOT NULL DEFAULT 0,
       salary_terebenets DOUBLE PRECISION NOT NULL DEFAULT 0,
+      salary_dudar DOUBLE PRECISION NOT NULL DEFAULT 0,
+      salary_olena_manual DOUBLE PRECISION NOT NULL DEFAULT 0,
       marketing DOUBLE PRECISION NOT NULL DEFAULT 0,
       sim_cards DOUBLE PRECISION NOT NULL DEFAULT 0,
       manual_accepted_at TIMESTAMPTZ,
@@ -241,7 +245,9 @@ export async function ensurePnlTable() {
       ADD COLUMN IF NOT EXISTS kmit_kasa_collection_services DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS kmit_kasa_current DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS kmit_kasa_movement DOUBLE PRECISION NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS kmit_kasa_accepted_at TIMESTAMPTZ
+      ADD COLUMN IF NOT EXISTS kmit_kasa_accepted_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS salary_dudar DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS salary_olena_manual DOUBLE PRECISION NOT NULL DEFAULT 0
   `);
   tableReady = true;
 }
@@ -441,6 +447,8 @@ function mapPage(
     rentTotal: moneyOr(row?.rent_total),
     salaryVolodymyr: moneyOr(row?.salary_volodymyr),
     salaryTerebenets: moneyOr(row?.salary_terebenets),
+    salaryDudar: moneyOr(row?.salary_dudar),
+    salaryOlenaManual: moneyOr(row?.salary_olena_manual),
     marketing: moneyOr(row?.marketing),
     simCards: moneyOr(row?.sim_cards),
     fuelKmit: moneyOr(row?.kmit_fuel),
@@ -543,6 +551,8 @@ function mapPage(
       rentTotal +
       manual.salaryVolodymyr +
       manual.salaryTerebenets +
+      manual.salaryDudar +
+      manual.salaryOlenaManual +
       manual.marketing +
       manual.simCards +
       manual.fuelKmit +
@@ -617,6 +627,8 @@ export async function savePnlManual(
             rent_total = ${values.rentTotal},
             salary_volodymyr = ${values.salaryVolodymyr},
             salary_terebenets = ${values.salaryTerebenets},
+            salary_dudar = ${values.salaryDudar},
+            salary_olena_manual = ${values.salaryOlenaManual},
             marketing = ${values.marketing},
             sim_cards = ${values.simCards},
             kmit_fuel = ${values.fuelKmit},
@@ -631,6 +643,8 @@ export async function savePnlManual(
               rent_total = ${values.rentTotal},
               salary_volodymyr = ${values.salaryVolodymyr},
               salary_terebenets = ${values.salaryTerebenets},
+              salary_dudar = ${values.salaryDudar},
+              salary_olena_manual = ${values.salaryOlenaManual},
               marketing = ${values.marketing},
               sim_cards = ${values.simCards},
               kmit_fuel = ${values.fuelKmit},
@@ -644,6 +658,8 @@ export async function savePnlManual(
               rent_total = ${values.rentTotal},
               salary_volodymyr = ${values.salaryVolodymyr},
               salary_terebenets = ${values.salaryTerebenets},
+              salary_dudar = ${values.salaryDudar},
+              salary_olena_manual = ${values.salaryOlenaManual},
               marketing = ${values.marketing},
               sim_cards = ${values.simCards},
               kmit_fuel = ${values.fuelKmit},
