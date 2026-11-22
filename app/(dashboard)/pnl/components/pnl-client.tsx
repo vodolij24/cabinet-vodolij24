@@ -480,6 +480,11 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         hint: "каса · витрата",
       },
       {
+        label: "Каса Кміть готівка · оренда",
+        amount: kmitKasaCosts.rent,
+        hint: "каса · витрата",
+      },
+      {
         label: "Каса Кміть готівка · паливо",
         amount: kmitKasaCosts.fuel,
         hint: "каса · витрата",
@@ -1602,6 +1607,12 @@ function KmitKasaBlock({
           value={costs.utilities}
           disabled={locked}
           onChange={(v) => onChange({ ...costs, utilities: num(v) })}
+        />
+        <MoneyField
+          label="Оренда"
+          value={costs.rent}
+          disabled={locked}
+          onChange={(v) => onChange({ ...costs, rent: num(v) })}
         />
         <MoneyField
           label="Паливо"

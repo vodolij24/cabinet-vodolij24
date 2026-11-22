@@ -112,6 +112,7 @@ export type PnlKmitKasaValues = {
   collection: number;
   salary: number;
   utilities: number;
+  rent: number;
   fuel: number;
   collectionServices: number;
   currentExpenses: number;

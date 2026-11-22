@@ -140,6 +140,7 @@ export async function PATCH(req: Request) {
         collection: moneyField(body, "collection") ?? -1,
         salary: moneyField(body, "salary") ?? -1,
         utilities: moneyField(body, "utilities") ?? -1,
+        rent: moneyField(body, "rent") ?? -1,
         fuel: moneyField(body, "fuel") ?? -1,
         collectionServices: moneyField(body, "collectionServices") ?? -1,
         currentExpenses: moneyField(body, "currentExpenses") ?? -1,

@@ -52,7 +52,8 @@ function fundsFromPage(page: PnlPage) {
       page.computed.paymentCalendar.rent +
       page.pozdnyakovaBnCosts.rent +
       page.kmitBnCosts.rent +
-      page.terebenetsKasaCosts.rent
+      page.terebenetsKasaCosts.rent +
+      page.kmitKasaCosts.rent
   );
   const utilities = round2(
     (page.sheets.utilities.amount ?? 0) +

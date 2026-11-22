@@ -73,6 +73,7 @@ type PnlRow = {
   kmit_kasa_collection: unknown;
   kmit_kasa_salary: unknown;
   kmit_kasa_utilities: unknown;
+  kmit_kasa_rent: unknown;
   kmit_kasa_fuel: unknown;
   kmit_kasa_collection_services: unknown;
   kmit_kasa_current: unknown;
@@ -243,6 +244,7 @@ export async function ensurePnlTable() {
       ADD COLUMN IF NOT EXISTS kmit_kasa_collection DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS kmit_kasa_salary DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS kmit_kasa_utilities DOUBLE PRECISION NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS kmit_kasa_rent DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS kmit_kasa_fuel DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS kmit_kasa_collection_services DOUBLE PRECISION NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS kmit_kasa_current DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -418,6 +420,7 @@ function kmitKasaFromRow(row: PnlRow | null) {
     collection: moneyOr(row?.kmit_kasa_collection),
     salary: moneyOr(row?.kmit_kasa_salary),
     utilities: moneyOr(row?.kmit_kasa_utilities),
+    rent: moneyOr(row?.kmit_kasa_rent),
     fuel: moneyOr(row?.kmit_kasa_fuel),
     collectionServices: moneyOr(row?.kmit_kasa_collection_services),
     currentExpenses: moneyOr(row?.kmit_kasa_current),
@@ -432,6 +435,7 @@ function kmitKasaTotal(c: ReturnType<typeof kmitKasaFromRow>) {
     c.collection +
       c.salary +
       c.utilities +
+      c.rent +
       c.fuel +
       c.collectionServices +
       c.currentExpenses
@@ -892,6 +896,7 @@ export async function savePnlKmitKasa(
             kmit_kasa_collection = ${values.collection},
             kmit_kasa_salary = ${values.salary},
             kmit_kasa_utilities = ${values.utilities},
+            kmit_kasa_rent = ${values.rent},
             kmit_kasa_fuel = ${values.fuel},
             kmit_kasa_collection_services = ${values.collectionServices},
             kmit_kasa_current = ${values.currentExpenses},
@@ -905,6 +910,7 @@ export async function savePnlKmitKasa(
               kmit_kasa_collection = ${values.collection},
               kmit_kasa_salary = ${values.salary},
               kmit_kasa_utilities = ${values.utilities},
+              kmit_kasa_rent = ${values.rent},
               kmit_kasa_fuel = ${values.fuel},
               kmit_kasa_collection_services = ${values.collectionServices},
               kmit_kasa_current = ${values.currentExpenses},
@@ -917,6 +923,7 @@ export async function savePnlKmitKasa(
               kmit_kasa_collection = ${values.collection},
               kmit_kasa_salary = ${values.salary},
               kmit_kasa_utilities = ${values.utilities},
+              kmit_kasa_rent = ${values.rent},
               kmit_kasa_fuel = ${values.fuel},
               kmit_kasa_collection_services = ${values.collectionServices},
               kmit_kasa_current = ${values.currentExpenses},
