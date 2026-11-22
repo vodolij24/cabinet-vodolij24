@@ -319,6 +319,11 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
         amount: manual.salaryOlenaManual,
         hint: "вручну",
       },
+      {
+        label: "З/П склад",
+        amount: manual.salarySklad,
+        hint: "вручну",
+      },
       { label: "Маркетинг", amount: manual.marketing, hint: "вручну" },
       {
         label: "Сімкарти автомати + підтримка",
@@ -837,6 +842,14 @@ export function PnlClient({ initial }: { initial: PnlPage }) {
             disabled={manual.accepted}
             onChange={(v) =>
               setManual((s) => ({ ...s, salaryOlenaManual: num(v) }))
+            }
+          />
+          <MoneyField
+            label="З/П склад"
+            value={manual.salarySklad}
+            disabled={manual.accepted}
+            onChange={(v) =>
+              setManual((s) => ({ ...s, salarySklad: num(v) }))
             }
           />
           <MoneyField

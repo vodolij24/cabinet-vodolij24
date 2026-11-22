@@ -41,6 +41,7 @@ export type PnlPage = {
     salaryTerebenets: number;
     salaryDudar: number;
     salaryOlenaManual: number;
+    salarySklad: number;
     marketing: number;
     simCards: number;
     fuelKmit: number;
@@ -137,6 +138,7 @@ export type PnlManualValues = {
   salaryTerebenets: number;
   salaryDudar: number;
   salaryOlenaManual: number;
+  salarySklad: number;
   marketing: number;
   simCards: number;
   fuelKmit: number;

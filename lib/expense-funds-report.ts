@@ -39,6 +39,7 @@ function fundsFromPage(page: PnlPage) {
       page.manual.salaryTerebenets +
       page.manual.salaryDudar +
       page.manual.salaryOlenaManual +
+      page.manual.salarySklad +
       page.staticCosts.salaryCallcenter +
       page.staticCosts.salaryTechdir +
       page.staticCosts.salaryFinmanager +
