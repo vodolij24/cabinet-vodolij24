@@ -7,6 +7,7 @@ import prismadb from "@/lib/prismadb";
 import { assertApprovedAccess } from "@/lib/cabinet-access";
 import { currentPeriodKey } from "@/lib/task-fields";
 import { sendTelegramTaskNotification } from "@/lib/telegram";
+import { syncStaffTaskMenu } from "@/lib/task-digest";
 
 export async function POST() {
   try {
@@ -69,6 +70,7 @@ export async function POST() {
           "Нове завдання"
         );
       }
+      await syncStaffTaskMenu(tech.id);
 
       created += 1;
     }

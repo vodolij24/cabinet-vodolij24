@@ -5,18 +5,53 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 const MAIN_BOT_TOKEN = process.env.MAIN_TG_BOT_TOKEN;
 
+const STAFF_BASE_COMMANDS = [
+  { command: "start", description: "Почати спочатку" },
+  { command: "collections", description: "Інкасації" },
+];
+
+const STAFF_TASKS_COMMAND = {
+  command: "tasks",
+  description: "Список завдань",
+};
+
 export async function sendStaffTextNotification(
   chatId: string,
   text: string
 ) {
-  if (!TELEGRAM_BOT_TOKEN) return;
+  if (!TELEGRAM_BOT_TOKEN) return false;
   try {
     await axios.post(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
       { chat_id: chatId, text }
     );
+    return true;
   } catch (err) {
     console.error("Помилка Telegram staff:", err);
+    return false;
+  }
+}
+
+/** Команда /tasks у меню бота є лише коли в працівника є відкриті задачі */
+export async function setStaffTaskCommand(chatId: string, enabled: boolean) {
+  if (!TELEGRAM_BOT_TOKEN) return false;
+  const commands = enabled
+    ? [STAFF_BASE_COMMANDS[0], STAFF_TASKS_COMMAND, STAFF_BASE_COMMANDS[1]]
+    : STAFF_BASE_COMMANDS;
+  const numericId = Number(chatId);
+  const scopeChatId = Number.isSafeInteger(numericId) ? numericId : chatId;
+  try {
+    await axios.post(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands`,
+      {
+        commands,
+        scope: { type: "chat", chat_id: scopeChatId },
+      }
+    );
+    return true;
+  } catch (err) {
+    console.error("Помилка меню Telegram staff:", err);
+    return false;
   }
 }
 

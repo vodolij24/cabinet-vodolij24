@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
 import { sendTelegramTaskNotification } from "@/lib/telegram";
+import { syncStaffTaskMenu } from "@/lib/task-digest";
 import { assertApprovedAccess } from "@/lib/cabinet-access";
 import {
   isTaskSchedule,
@@ -183,6 +184,7 @@ export async function POST(req: Request) {
           "Нове завдання"
         );
       }
+      await syncStaffTaskMenu(workerId);
     }
 
     return NextResponse.json({

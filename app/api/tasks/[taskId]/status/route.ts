@@ -6,6 +6,7 @@ import {
   cabinetStatusUpdate,
   isCabinetTaskStatus,
 } from "@/lib/task-fields";
+import { syncStaffTaskMenu } from "@/lib/task-digest";
 
 function accessErrorResponse(error: unknown) {
   const message = error instanceof Error ? error.message : "";
@@ -37,7 +38,7 @@ export async function PATCH(
 
     const existing = await prismadb.tasks.findUnique({
       where: { id },
-      select: { id: true, completedAt: true },
+      select: { id: true, completedAt: true, workerId: true },
     });
     if (!existing) {
       return new NextResponse("Not found", { status: 404 });
@@ -48,6 +49,8 @@ export async function PATCH(
       data: cabinetStatusUpdate(body.status, existing.completedAt),
       select: { id: true, status: true },
     });
+
+    await syncStaffTaskMenu(existing.workerId);
 
     return NextResponse.json(updated);
   } catch (error) {

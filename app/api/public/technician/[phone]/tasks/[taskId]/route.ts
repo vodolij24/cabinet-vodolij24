@@ -8,6 +8,7 @@ import {
   TASK_STATUS,
 } from "@/lib/task-fields";
 import { saveTaskPhotoReport } from "@/lib/task-photos";
+import { syncStaffTaskMenu } from "@/lib/task-digest";
 
 export const runtime = "nodejs";
 /** Дозволяє multipart з кількома фото (ліміт платформи Vercel — ~4.5MB body на Hobby) */
@@ -104,6 +105,7 @@ export async function POST(
         },
       });
 
+      await syncStaffTaskMenu(task.workerId);
       return NextResponse.json({
         id: updated.id,
         status: updated.status,
@@ -153,6 +155,7 @@ export async function POST(
             },
       });
 
+      await syncStaffTaskMenu(task.workerId);
       return NextResponse.json({
         id: updated.id,
         status: updated.status,

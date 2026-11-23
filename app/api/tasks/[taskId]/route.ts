@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import prismadb from "@/lib/prismadb";
 import { sendTelegramTaskNotification } from "@/lib/telegram";
+import { syncStaffTaskMenu } from "@/lib/task-digest";
 import { assertApprovedAccess } from "@/lib/cabinet-access";
 import {
   isTaskSchedule,
@@ -66,6 +67,7 @@ export async function DELETE(
     const task = await prismadb.tasks.delete({
       where: { id: Number(taskId) },
     });
+    await syncStaffTaskMenu(task.workerId);
 
     return NextResponse.json(task.id);
   } catch (error) {
@@ -141,6 +143,11 @@ export async function PATCH(
       });
     }
 
+    const previous = await prismadb.tasks.findUnique({
+      where: { id: Number(taskId) },
+      select: { workerId: true },
+    });
+
     const task = await prismadb.tasks.update({
       where: { id: Number(taskId) },
       data: {
@@ -172,6 +179,10 @@ export async function PATCH(
         task,
         "Завдання змінено"
       );
+    }
+    await syncStaffTaskMenu(workerId);
+    if (previous?.workerId && previous.workerId !== workerId) {
+      await syncStaffTaskMenu(previous.workerId);
     }
 
     return NextResponse.json(task.id);

@@ -9,6 +9,7 @@ import {
   MANAGER_DECISION,
   TASK_STATUS,
 } from "@/lib/task-fields";
+import { syncStaffTaskMenu } from "@/lib/task-digest";
 
 export async function POST(
   req: Request,
@@ -66,6 +67,7 @@ export async function POST(
         },
       });
 
+      await syncStaffTaskMenu(task.workerId);
       return NextResponse.json({
         id: updated.id,
         status: updated.status,
@@ -98,6 +100,7 @@ export async function POST(
       },
     });
 
+    await syncStaffTaskMenu(task.workerId);
     return NextResponse.json({
       id: updated.id,
       status: updated.status,
