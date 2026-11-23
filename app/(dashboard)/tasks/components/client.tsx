@@ -201,7 +201,13 @@ export const TasksClient: React.FC<TasksClientProps> = ({ data }) => {
         </span>
       </div>
 
-      <DataTable searchKey="title" columns={columns} data={filtered} hideSearch />
+      <DataTable
+        searchKey="title"
+        columns={columns}
+        data={filtered}
+        hideSearch
+        onRowClick={(row) => router.push(`/tasks/${row.id}`)}
+      />
     </>
   );
 };

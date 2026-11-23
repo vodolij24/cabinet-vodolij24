@@ -67,6 +67,50 @@ export const TASK_STATUS = {
   done: "done",
 } as const;
 
+/** Статуси, які можна виставити з веб-кабінету */
+export const CABINET_TASK_STATUSES = [
+  { value: "todo", label: "До виконання" },
+  { value: "in_progress", label: "В роботі" },
+  { value: "awaiting_manager_confirm", label: "Очікує підтвердження керівника" },
+  { value: "awaiting_manager_decision", label: "Очікує рішення керівника" },
+  { value: "awaiting_manager_ack", label: "Очікує ознайомлення керівника" },
+  { value: "done", label: "Закрито" },
+] as const;
+
+export type CabinetTaskStatus = (typeof CABINET_TASK_STATUSES)[number]["value"];
+
+export function isCabinetTaskStatus(value: unknown): value is CabinetTaskStatus {
+  return (
+    typeof value === "string" &&
+    CABINET_TASK_STATUSES.some((status) => status.value === value)
+  );
+}
+
+/** Поля, які змінюються разом зі статусом з кабінету */
+export function cabinetStatusUpdate(
+  status: CabinetTaskStatus,
+  completedAt: Date | null
+) {
+  if (status === "todo" || status === "in_progress") {
+    return {
+      status,
+      completedAt: null,
+      managerDecision: null,
+      reviewedAt: null,
+      reviewedById: null,
+    };
+  }
+
+  if (status === "done") {
+    return {
+      status,
+      completedAt: completedAt ?? new Date(),
+    };
+  }
+
+  return { status };
+}
+
 export const MANAGER_DECISION = {
   accepted: "accepted",
   rejected: "rejected",

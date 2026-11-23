@@ -1,12 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { ColumnDef } from "@tanstack/table-core";
 import {
   Banknote,
   Calendar,
-  CheckCircle2,
-  Circle,
-  Clock,
   User,
   Wallet,
   Wrench,
@@ -14,9 +12,9 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { isManagerReviewableStatus } from "@/lib/task-fields";
 
 import { CellAction } from "./cell-action";
+import { TaskStatusSelect } from "./task-status-select";
 
 export type TaskColumn = {
   id: number;
@@ -60,53 +58,6 @@ function TypeBadge({ typeKey, label }: { typeKey: string; label: string }) {
   );
 }
 
-function StatusBadge({
-  statusKey,
-  label,
-}: {
-  statusKey: string;
-  label: string | null;
-}) {
-  const text = label || "—";
-
-  if (statusKey === "done") {
-    return (
-      <Badge className="gap-1 bg-emerald-600 font-normal hover:bg-emerald-600">
-        <CheckCircle2 className="h-3 w-3" />
-        {text}
-      </Badge>
-    );
-  }
-
-  if (isManagerReviewableStatus(statusKey)) {
-    return (
-      <Badge
-        variant="outline"
-        className="gap-1 border-amber-300 bg-amber-50 text-amber-900 font-normal dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
-      >
-        <Clock className="h-3 w-3" />
-        {text}
-      </Badge>
-    );
-  }
-
-  if (statusKey === "in_progress") {
-    return (
-      <Badge variant="secondary" className="gap-1 font-normal">
-        <Clock className="h-3 w-3" />
-        {text}
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge variant="outline" className="gap-1 font-normal">
-      <Circle className="h-3 w-3" />
-      {text}
-    </Badge>
-  );
-}
-
 export const columns: ColumnDef<TaskColumn>[] = [
   {
     accessorKey: "id",
@@ -127,7 +78,13 @@ export const columns: ColumnDef<TaskColumn>[] = [
     header: "Назва",
     cell: ({ row }) => (
       <div className="min-w-[160px] max-w-[260px]">
-        <p className="font-medium leading-snug">{row.original.title}</p>
+        <Link
+          href={`/tasks/${row.original.id}`}
+          className="font-medium leading-snug hover:underline"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {row.original.title}
+        </Link>
         {row.original.baseLocation && row.original.baseLocation !== "—" ? (
           <p className="mt-0.5 text-xs text-muted-foreground">
             {row.original.baseLocation}
@@ -177,9 +134,10 @@ export const columns: ColumnDef<TaskColumn>[] = [
     accessorKey: "status",
     header: "Статус",
     cell: ({ row }) => (
-      <StatusBadge
-        statusKey={row.original.statusKey}
-        label={row.original.status}
+      <TaskStatusSelect
+        taskId={row.original.id}
+        status={row.original.statusKey}
+        className="h-8 w-[220px]"
       />
     ),
   },

@@ -28,6 +28,7 @@ interface DataTableProps<TData, TValue> {
   searchKey: string;
   hideSearch?: boolean;
   searchPlaceholder?: string;
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -36,6 +37,7 @@ export function DataTable<TData, TValue>({
   searchKey,
   hideSearch = false,
   searchPlaceholder = "Пошук…",
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const table = useReactTable({
@@ -97,6 +99,19 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={onRowClick ? "cursor-pointer" : undefined}
+                  onClick={(event) => {
+                    if (!onRowClick) return;
+                    const target = event.target as HTMLElement | null;
+                    if (
+                      target?.closest(
+                        "[data-row-click-ignore], a, button, input, textarea, select"
+                      )
+                    ) {
+                      return;
+                    }
+                    onRowClick(row.original);
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { TASK_SCHEDULES, TASK_TYPES } from "@/lib/task-fields";
 import { WORKER_ROLES } from "@/lib/worker-roles";
+import { TaskStatusSelect } from "../../components/task-status-select";
 
 const formSchema = z
   .object({
@@ -313,18 +314,27 @@ export const DriversForm: React.FC<TaskFormProps> = ({
         loading={loading}
       />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Heading title={title} description={description} />
-        {initialData && (
-          <Button
-            disabled={loading}
-            variant="destructive"
-            size="sm"
-            onClick={() => setOpen(true)}
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {initialData ? (
+            <TaskStatusSelect
+              taskId={initialData.id}
+              status={initialData.status}
+              showCloseButton
+            />
+          ) : null}
+          {initialData && (
+            <Button
+              disabled={loading}
+              variant="destructive"
+              size="sm"
+              onClick={() => setOpen(true)}
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <Separator />
